@@ -1,0 +1,313 @@
+{
+	"Delicious": {
+		"Item_0": {
+			"Frame": 0
+		},
+		"Item_1": {
+			"Frame": 1
+		},
+		"Item_2": {
+			"Frame": 2
+		},
+		"Item_3": {
+			"Frame": 3
+		},
+		"Item_4": {
+			"Frame": 4
+		},
+		"Item_5": {
+			"Frame": 5
+		},
+		"Item_6": {
+			"Frame": 6
+		},
+		"Item_7": {
+			"Frame": 7
+		},
+		"Item_8": {
+			"Frame": 8
+		},
+		"Item_9": {
+			"Frame": 9
+		},
+		"Item_10": {
+			"Frame": 10
+		},
+		"Item_11": {
+			"Frame": 11
+		},
+		"Item_12": {
+			"Frame": 12
+		},
+		"Item_13": {
+			"Frame": 13
+		},
+		"Item_14": {
+			"Frame": 14
+		},
+		"Item_15": {
+			"Frame": 15
+		},
+		"Item_16": {
+			"Frame": 16
+		},
+		"Item_17": {
+			"Frame": 17
+		},
+		"Item_18": {
+			"Frame": 18
+		},
+		"Item_19": {
+			"Frame": 19
+		}
+	},
+	"Drink": {
+		"Item_20": {
+			"Frame": 20
+		},
+		"Item_21": {
+			"Frame": 21
+		},
+		"Item_22": {
+			"Frame": 22
+		},
+		"Item_23": {
+			"Frame": 23
+		},
+		"Item_24": {
+			"Frame": 24
+		},
+		"Item_25": {
+			"Frame": 25
+		},
+		"Item_26": {
+			"Frame": 26
+		},
+		"Item_27": {
+			"Frame": 27
+		},
+		"Item_28": {
+			"Frame": 28
+		},
+		"Item_29": {
+			"Frame": 29
+		},
+		"Item_30": {
+			"Frame": 30
+		},
+		"Item_31": {
+			"Frame": 31
+		},
+		"Item_32": {
+			"Frame": 32
+		},
+		"Item_33": {
+			"Frame": 33
+		},
+		"Item_34": {
+			"Frame": 34
+		},
+		"Item_35": {
+			"Frame": 35
+		},
+		"Item_36": {
+			"Frame": 36
+		},
+		"Item_37": {
+			"Frame": 37
+		},
+		"Item_38": {
+			"Frame": 38
+		},
+		"Item_39": {
+			"Frame": 39
+		}
+	},
+	"HotFood": {
+		"Item_40": {
+			"Frame": 40
+		},
+		"Item_41": {
+			"Frame": 41
+		},
+		"Item_42": {
+			"Frame": 42
+		},
+		"Item_43": {
+			"Frame": 43
+		},
+		"Item_44": {
+			"Frame": 44
+		},
+		"Item_45": {
+			"Frame": 45
+		},
+		"Item_46": {
+			"Frame": 46
+		},
+		"Item_47": {
+			"Frame": 47
+		},
+		"Item_48": {
+			"Frame": 48
+		},
+		"Item_49": {
+			"Frame": 49
+		},
+		"Item_50": {
+			"Frame": 50
+		},
+		"Item_51": {
+			"Frame": 51
+		},
+		"Item_52": {
+			"Frame": 52
+		},
+		"Item_53": {
+			"Frame": 53
+		},
+		"Item_54": {
+			"Frame": 54
+		},
+		"Item_55": {
+			"Frame": 55
+		},
+		"Item_56": {
+			"Frame": 56
+		},
+		"Item_57": {
+			"Frame": 57
+		},
+		"Item_58": {
+			"Frame": 58
+		},
+		"Item_59": {
+			"Frame": 59
+		}
+	},
+	"Kitchen": {
+		"Item_60": {
+			"Frame": 60
+		},
+		"Item_61": {
+			"Frame": 61
+		},
+		"Item_62": {
+			"Frame": 62
+		},
+		"Item_63": {
+			"Frame": 63
+		},
+		"Item_64": {
+			"Frame": 64
+		},
+		"Item_65": {
+			"Frame": 65
+		},
+		"Item_66": {
+			"Frame": 66
+		},
+		"Item_67": {
+			"Frame": 67
+		},
+		"Item_68": {
+			"Frame": 68
+		},
+		"Item_69": {
+			"Frame": 69
+		},
+		"Item_70": {
+			"Frame": 70
+		},
+		"Item_71": {
+			"Frame": 71
+		},
+		"Item_72": {
+			"Frame": 72
+		},
+		"Item_73": {
+			"Frame": 73
+		},
+		"Item_74": {
+			"Frame": 74
+		},
+		"Item_75": {
+			"Frame": 75
+		},
+		"Item_76": {
+			"Frame": 76
+		},
+		"Item_77": {
+			"Frame": 77
+		},
+		"Item_78": {
+			"Frame": 78
+		},
+		"Item_79": {
+			"Frame": 79
+		}
+	},
+	"Party": {
+		"Item_80": {
+			"Frame": 80
+		},
+		"Item_81": {
+			"Frame": 81
+		},
+		"Item_82": {
+			"Frame": 82
+		},
+		"Item_83": {
+			"Frame": 83
+		},
+		"Item_84": {
+			"Frame": 84
+		},
+		"Item_85": {
+			"Frame": 85
+		},
+		"Item_86": {
+			"Frame": 86
+		},
+		"Item_87": {
+			"Frame": 87
+		},
+		"Item_88": {
+			"Frame": 88
+		},
+		"Item_89": {
+			"Frame": 89
+		},
+		"Item_90": {
+			"Frame": 90
+		},
+		"Item_91": {
+			"Frame": 91
+		},
+		"Item_92": {
+			"Frame": 92
+		},
+		"Item_93": {
+			"Frame": 93
+		},
+		"Item_94": {
+			"Frame": 94
+		},
+		"Item_95": {
+			"Frame": 95
+		},
+		"Item_96": {
+			"Frame": 96
+		},
+		"Item_97": {
+			"Frame": 97
+		},
+		"Item_98": {
+			"Frame": 98
+		},
+		"Item_99": {
+			"Frame": 99
+		}
+	}
+
+}

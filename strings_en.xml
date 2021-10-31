@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<strings>
+<!-- Menu -->
+   <string id='Play'>Tap to Play!</string>
+   <string id='Settings'>Settings</string>
+   <string id='Leaderboard'>Leaderboard</string>
+   <string id='Collections'>Collections</string>
+   <string id='Collection'>Collection</string>
+   <string id='BuyRandom'>Buy Random</string>
+   <string id='NewItemUnlocked'>New item unlocked!</string>
+   <string id='Highscore'>High Score: </string>
+   <string id='Achievements'>Achievements</string>
+   <string id='ShareText'>I have a new high score in the </string>
+   <string id='Get'>Get!</string>
+   <string id='TimeLeft'>Time left:</string>
+   <string id='DailyGift'>Daily Gift!</string>
+   <string id='GiftInfo'>Every minute +1 Coin</string>
+<!-- Settings -->
+   <string id='Sounds'>Sounds</string>
+   <string id='Vibration'>Vibration</string>
+   <string id='Step'>Step </string>
+   <string id=''></string>
+<!-- Game -->
+   <string id='TapType_1'>1 Tap</string>
+   <string id='TapType_2'>2 Taps</string>
+   <string id='TapType_3'>3 Taps</string>
+   <string id='Score'>Score: </string>
+   <string id='Misses'>Misses: </string>
+   <string id='YouLose'>You lose</string>
+   <string id='Restart'>Restart</string>
+   <string id='ScoreText'>Score</string>
+   <string id='Continiue'>Continiue</string>
+   <string id='BossWarning'>BOSS!</string>
+   <string id='Tap'>Tap!</string>
+   <string id='Miss'>Miss!</string>
+   <string id='TapTapTap'>Tap! Tap! Tap!</string>
+   <string id='Revive'>Revive</string>
+   <string id='StepResult_Completed'>Step completed!</string>
+   <string id='StepResult_Failed'>Step failed!</string>
+   <string id='GameNiceText_Type_1'>Nice!</string>
+   <string id='GameNiceText_Type_2'>Great!</string>
+   <string id='GameNiceText_Type_3'>Awesome!</string>
+   <string id='GameNiceText_Type_4'>Go on!</string>
+<!-- Collections -->
+   <string id='Collection_Delicious'>Delicious collection</string>
+   <string id='Collection_Drink'>Drink collection</string>
+   <string id='Collection_HotFood'>Hot-Food collection</string>
+   <string id='Collection_Kitchen'>Kitchen collection</string>
+   <string id='Collection_Party'>Party collection</string>
+   <string id='NewHighscore'>New record!</string>
+<!-- Other -->
+   <string id='InApp_RemoveAds'>Remove Ads</string>
+   <string id='ShareText'>Can you beat my record in this game? Download and show your skills!</string>
+</strings>

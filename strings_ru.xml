@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<strings>
+<!-- Menu -->
+   <string id='Play'>Нажми чтобы Играть!</string>
+   <string id='Settings'>Настройки</string>
+   <string id='Leaderboard'>Лидеры</string>
+   <string id='Collections'>Коллекции</string>
+   <string id='Collection'>Коллекция</string>
+   <string id='BuyRandom'>Купить 1</string>
+   <string id='NewItemUnlocked'>Новый предмет разблокирован!</string>
+   <string id='Highscore'>Рекорд: </string>
+   <string id='Achievements'>Достижения</string>
+   <string id='ShareText'>У меня новый рекорд в </string>
+   <string id='Get'>Забрать!</string>
+   <string id='TimeLeft'>Времени прошло:</string>
+   <string id='DailyGift'>Ежедневный приз!</string>
+   <string id='GiftInfo'>Каждая минута +1 Монета</string>
+<!-- Settings -->
+   <string id='Sounds'>Звуки</string>
+   <string id='Vibration'>Вибрация</string>
+   <string id='Step'>Этап </string>
+   <string id=''></string>
+<!-- Game -->
+   <string id='TapType_1'>1 Нажатие</string>
+   <string id='TapType_2'>2 Нажатия</string>
+   <string id='TapType_3'>3 Нажатия</string>
+   <string id='Score'>Счёт: </string>
+   <string id='Misses'>Ошибок: </string>
+   <string id='YouLose'>Вы проиграли!</string>
+   <string id='Restart'>Заново</string>
+   <string id='ScoreText'>Счёт</string>
+   <string id='Continiue'>Продолжить</string>
+   <string id='BossWarning'>БОСС!</string>
+   <string id='Tap'>Жми!</string>
+   <string id='Miss'>Мисс!</string>
+   <string id='TapTapTap'>Жми! Жми! Жми!</string>
+   <string id='Revive'>Возродиться</string>
+   <string id='StepResult_Completed'>Этап пройден!</string>
+   <string id='StepResult_Failed'>Этап провален!</string>
+   <string id='GameNiceText_Type_1'>Хорошо!</string>
+   <string id='GameNiceText_Type_2'>Великолепно!</string>
+   <string id='GameNiceText_Type_3'>Безумно!</string>
+   <string id='GameNiceText_Type_4'>Продолжай!</string>
+<!-- Collections -->
+   <string id='Collection_Delicious'>Коллекция вкусностей</string>
+   <string id='Collection_Drink'>Коллекция напитков</string>
+   <string id='Collection_HotFood'>Коллекция горячего</string>
+   <string id='Collection_Kitchen'>Коллекция приборов</string>
+   <string id='Collection_Party'>Коллекция вечеринки</string>
+   <string id='NewHighscore'>Новый рекорд!</string>
+<!-- Other -->
+   <string id='InApp_RemoveAds'>Убрать рекламу</string>
+   <string id='ShareText'>Сможешь побить мой рекорд в этой игре? Тогда скачивай и покажи свои навыки!</string>
+</strings>
