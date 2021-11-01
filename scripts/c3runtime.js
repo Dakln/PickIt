@@ -3182,6 +3182,167 @@ rgba255(r,g,b,a){return C3.PackRGBAEx(r/255,g/255,b/255,a/255)},projectname(){re
 }
 
 {
+'use strict';const C3=self.C3;C3.Plugins.AJAX=class AJAXPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.AJAX.Type=class AJAXType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.AJAX.Instance=class AJAXInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._lastData="";this._curTag="";this._progress=0;this._timeout=-1;this._nextRequestHeaders=new Map;this._nextReponseBinaryData=null;this._nextRequestOverrideMimeType="";this._nwjsFs=null;this._nwjsPath=null;this._nwjsAppFolder=null;this._isNWjs=this._runtime.GetExportType()==="nwjs";if(this._isNWjs){this._nwjsFs=require("fs");this._nwjsPath=require("path");const process=self["process"]||
+nw["process"];this._nwjsAppFolder=this._nwjsPath["dirname"](process["execPath"])+"\\"}}Release(){super.Release()}async _TriggerError(tag,url,err){console.error(`[Construct 3] AJAX request to '${url}' (tag '${tag}') failed: `,err);this._curTag=tag;await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnAnyError);await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnError)}async _TriggerComplete(tag){this._curTag=tag;await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnAnyComplete);await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnComplete)}async _OnProgress(tag,
+e){if(!e["lengthComputable"])return;this._progress=e["loaded"]/e["total"];this._curTag=tag;await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnProgress)}_OnError(tag,url,err){if(!this._isNWjs){this._TriggerError(tag,url,err);return}const fs=this._nwjsFs;const filePath=this._nwjsAppFolder+url;if(fs["existsSync"](filePath))fs["readFile"](filePath,{"encoding":"utf8"},(err2,data)=>{if(err2)this._TriggerError(tag,url,err2);else{this._lastData=data.replace(/\r\n/g,"\n");this._TriggerComplete(tag)}});else this._TriggerError(tag,
+url,err)}async _DoCordovaRequest(tag,file){const assetManager=this._runtime.GetAssetManager();const binaryData=this._nextReponseBinaryData;this._nextReponseBinaryData=null;try{if(binaryData){const buffer=await assetManager.CordovaFetchLocalFileAsArrayBuffer(file);binaryData.SetArrayBufferTransfer(buffer);this._lastData="";this._TriggerComplete(tag)}else{const data=await assetManager.CordovaFetchLocalFileAsText(file);this._lastData=data.replace(/\r\n/g,"\n");this._TriggerComplete(tag)}}catch(err){this._TriggerError(tag,
+file,err)}}_DoRequest(tag,url,method,data){return new Promise(resolve=>{const errorFunc=err=>{this._OnError(tag,url,err);resolve()};const binaryData=this._nextReponseBinaryData;this._nextReponseBinaryData=null;try{const request=new XMLHttpRequest;request.onreadystatechange=()=>{if(request.readyState===4){if(binaryData)this._lastData="";else this._lastData=(request.responseText||"").replace(/\r\n/g,"\n");if(request.status>=400)this._TriggerError(tag,url,request.status+request.statusText);else{const hasData=
+this._lastData.length||binaryData&&request.response instanceof ArrayBuffer;if((!this._isNWjs||hasData)&&!(!this._isNWjs&&request.status===0&&!hasData)){if(binaryData)binaryData.SetArrayBufferTransfer(request.response);this._TriggerComplete(tag)}}resolve()}};request.onerror=errorFunc;request.ontimeout=errorFunc;request.onabort=errorFunc;request["onprogress"]=e=>this._OnProgress(tag,e);request.open(method,url);if(this._timeout>=0&&typeof request["timeout"]!=="undefined")request["timeout"]=this._timeout;
+request.responseType=binaryData?"arraybuffer":"text";if(data&&!this._nextRequestHeaders.has("Content-Type"))if(typeof data!=="string")request["setRequestHeader"]("Content-Type","application/octet-stream");else request["setRequestHeader"]("Content-Type","application/x-www-form-urlencoded");for(const [header,value]of this._nextRequestHeaders)try{request["setRequestHeader"](header,value)}catch(err){console.error(`[Construct 3] AJAX: Failed to set header '${header}: ${value}': `,err)}this._nextRequestHeaders.clear();
+if(this._nextRequestOverrideMimeType){try{request["overrideMimeType"](this._nextRequestOverrideMimeType)}catch(err){console.error(`[Construct 3] AJAX: failed to override MIME type: `,err)}this._nextRequestOverrideMimeType=""}if(data)request.send(data);else request.send()}catch(err){errorFunc(err)}})}GetDebuggerProperties(){const prefix="plugins.ajax.debugger";return[{title:prefix+".title",properties:[{name:prefix+".last-data",value:this._lastData}]}]}SaveToJson(){return{"lastData":this._lastData}}LoadFromJson(o){this._lastData=
+o["lastData"];this._curTag="";this._progress=0}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.AJAX.Cnds={OnComplete(tag){return C3.equalsNoCase(this._curTag,tag)},OnAnyComplete(){return true},OnError(tag){return C3.equalsNoCase(this._curTag,tag)},OnAnyError(){return true},OnProgress(tag){return C3.equalsNoCase(this._curTag,tag)}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.AJAX.Acts={async Request(tag,url){if(this._runtime.IsCordova()&&C3.IsRelativeURL(url)&&this._runtime.GetAssetManager().IsFileProtocol())await this._DoCordovaRequest(tag,url);else if(this._runtime.IsPreview()&&C3.IsRelativeURL(url)){const localurl=this._runtime.GetAssetManager().GetLocalUrlAsBlobUrl(url.toLowerCase());await this._DoRequest(tag,localurl,"GET",null)}else await this._DoRequest(tag,url,"GET",null)},async RequestFile(tag,file){if(this._runtime.IsCordova()&&this._runtime.GetAssetManager().IsFileProtocol())await this._DoCordovaRequest(tag,
+file);else await this._DoRequest(tag,this._runtime.GetAssetManager().GetLocalUrlAsBlobUrl(file),"GET",null)},async Post(tag,url,data,method){await this._DoRequest(tag,url,method,data)},async PostBinary(tag,url,objectClass,method){if(!objectClass)return;const target=objectClass.GetFirstPicked(this._inst);if(!target)return;const sdkInst=target.GetSdkInstance();const buffer=sdkInst.GetArrayBufferReadOnly();await this._DoRequest(tag,url,method,buffer)},SetTimeout(t){this._timeout=t*1E3},SetHeader(n,v){this._nextRequestHeaders.set(n,
+v)},SetResponseBinary(objectClass){if(!objectClass)return;const inst=objectClass.GetFirstPicked(this._inst);if(!inst)return;this._nextReponseBinaryData=inst.GetSdkInstance()},OverrideMIMEType(m){this._nextRequestOverrideMimeType=m}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.AJAX.Exps={LastData(){return this._lastData},Progress(){return this._progress},Tag(){return this._curTag}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Audio=class AudioPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;const C3X=self.C3X;C3.Plugins.Audio.Type=class AudioType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}GetScriptInterfaceClass(){return self.IAudioObjectType}};function GetAudioDOMInterface(){if(self["C3Audio_DOMInterface"])return self["C3Audio_DOMInterface"];else throw new Error("audio scripting API cannot be used here - make sure the project is using DOM mode, not worker mode");}self.IAudioObjectType=class IAudioObjectType extends self.IObjectClass{constructor(objectType){super(objectType)}get audioContext(){return GetAudioDOMInterface().GetAudioContext()}get destinationNode(){return GetAudioDOMInterface().GetDestinationNode()}};
+
+}
+
+{
+'use strict';const C3=self.C3;const DOM_COMPONENT_ID="audio";const LATENCY_HINTS=["interactive","balanced","playback"];
+C3.Plugins.Audio.Instance=class AudioInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._nextPlayTime=0;this._triggerTag="";this._timeScaleMode=0;this._saveLoadMode=0;this._playInBackground=false;this._panningModel=1;this._distanceModel=1;this._listenerX=this._runtime.GetViewportWidth()/2;this._listenerY=this._runtime.GetViewportHeight()/2;this._listenerZ=-600;this._referenceDistance=600;this._maxDistance=1E4;this._rolloffFactor=1;this._listenerInst=
+null;this._loadListenerUid=-1;this._masterVolume=1;this._isSilent=false;this._sampleRate=0;this._effectCount=new Map;this._preloadTotal=0;this._preloadCount=0;this._remoteUrls=new Map;let latencyHint="interactive";if(properties){this._timeScaleMode=properties[0];this._saveLoadMode=properties[1];this._playInBackground=properties[2];latencyHint=LATENCY_HINTS[properties[3]];this._panningModel=properties[4];this._distanceModel=properties[5];this._listenerZ=-properties[6];this._referenceDistance=properties[7];
+this._maxDistance=properties[8];this._rolloffFactor=properties[9]}this._lastAIState=[];this._lastFxState=[];this._lastAnalysersData=[];this.AddDOMMessageHandlers([["state",e=>this._OnUpdateState(e)],["fxstate",e=>this._OnUpdateFxState(e)],["trigger",e=>this._OnTrigger(e)]]);const rt=this.GetRuntime().Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"instancedestroy",e=>this._OnInstanceDestroyed(e.instance)),C3.Disposable.From(rt,"afterload",()=>this._OnAfterLoad()),
+C3.Disposable.From(rt,"suspend",()=>this._OnSuspend()),C3.Disposable.From(rt,"resume",()=>this._OnResume()));this._runtime.AddLoadPromise(this.PostToDOMAsync("create-audio-context",{"preloadList":this._runtime.GetAssetManager().GetAudioToPreload().map(o=>({"originalUrl":o.originalUrl,"url":o.url,"type":o.type,"fileSize":o.fileSize})),"isiOSCordova":this._runtime.IsiOSCordova(),"timeScaleMode":this._timeScaleMode,"latencyHint":latencyHint,"panningModel":this._panningModel,"distanceModel":this._distanceModel,
+"refDistance":this._referenceDistance,"maxDistance":this._maxDistance,"rolloffFactor":this._rolloffFactor,"listenerPos":[this._listenerX,this._listenerY,this._listenerZ]}).then(info=>{this._sampleRate=info["sampleRate"]}));this._StartTicking()}Release(){this._listenerInst=null;super.Release()}_OnInstanceDestroyed(inst){if(this._listenerInst===inst)this._listenerInst=null}DbToLinearNoCap(x){return Math.pow(10,x/20)}DbToLinear(x){const v=this.DbToLinearNoCap(x);if(!isFinite(v))return 0;return Math.max(Math.min(v,
+1),0)}LinearToDbNoCap(x){return Math.log(x)/Math.log(10)*20}LinearToDb(x){return this.LinearToDbNoCap(Math.max(Math.min(x,1),0))}_OnSuspend(){if(this._playInBackground)return;this.PostToDOM("set-suspended",{"isSuspended":true})}_OnResume(){if(this._playInBackground)return;this.PostToDOM("set-suspended",{"isSuspended":false})}_OnUpdateState(e){const tickCount=e["tickCount"];const preservePlaceholders=this._lastAIState.filter(ai=>ai.hasOwnProperty("placeholder")&&(ai["placeholder"]>tickCount||ai["placeholder"]===
+-1));this._lastAIState=e["audioInstances"];this._lastAnalysersData=e["analysers"];if(preservePlaceholders.length>0)C3.appendArray(this._lastAIState,preservePlaceholders)}_OnUpdateFxState(e){this._lastFxState=e["fxstate"]}_GetFirstAudioStateByTag(tag){for(const a of this._lastAIState)if(C3.equalsNoCase(a["tag"],tag))return a;return null}_IsTagPlaying(tag){return this._lastAIState.some(ai=>C3.equalsNoCase(tag,ai["tag"])&&ai["isPlaying"])}_MaybeMarkAsPlaying(tag,isMusic,isLooping,vol){if(this._IsTagPlaying(tag))return null;
+const state={"tag":tag,"duration":0,"volume":vol,"isPlaying":true,"playbackTime":0,"playbackRate":1,"uid":-1,"bufferOriginalUrl":"","bufferUrl":"","bufferType":"","isMusic":isMusic,"isLooping":isLooping,"isMuted":false,"resumePosition":0,"pan":null,"placeholder":-1};this._lastAIState.push(state);return state}async _OnTrigger(e){const type=e["type"];this._triggerTag=e["tag"];const aiId=e["aiid"];if(type==="ended"){for(const aiState of this._lastAIState)if(aiState["aiid"]===aiId){aiState["isPlaying"]=
+false;break}await this.TriggerAsync(C3.Plugins.Audio.Cnds.OnEnded)}else if(type==="fade-ended")await this.TriggerAsync(C3.Plugins.Audio.Cnds.OnFadeEnded)}Tick(){const o={"timeScale":this._runtime.GetTimeScale(),"gameTime":this._runtime.GetGameTimeRaw(),"instPans":this.GetInstancePans(),"tickCount":this._runtime.GetTickCountNoSave()};if(this._listenerInst){const wi=this._listenerInst.GetWorldInfo();this._listenerX=wi.GetX();this._listenerY=wi.GetY();o["listenerPos"]=[this._listenerX,this._listenerY,
+this._listenerZ]}this.PostToDOM("tick",o)}rotatePtAround(px,py,a,ox,oy){if(a===0)return[px,py];const sin_a=Math.sin(a);const cos_a=Math.cos(a);px-=ox;py-=oy;const left_sin_a=px*sin_a;const top_sin_a=py*sin_a;const left_cos_a=px*cos_a;const top_cos_a=py*cos_a;px=left_cos_a-top_sin_a;py=top_cos_a+left_sin_a;px+=ox;py+=oy;return[px,py]}GetInstancePans(){return this._lastAIState.filter(ai=>ai["uid"]!==-1).map(ai=>this._runtime.GetInstanceByUID(ai["uid"])).filter(inst=>inst).map(inst=>{const wi=inst.GetWorldInfo();
+const layerAngle=wi.GetLayer().GetAngle();const [x,y]=this.rotatePtAround(wi.GetX(),wi.GetY(),-layerAngle,this._listenerX,this._listenerY);return{"uid":inst.GetUID(),"x":x,"y":y,"angle":wi.GetAngle()-layerAngle}})}GetAnalyserData(tag,index){for(const o of this._lastAnalysersData)if(o.index===index&&C3.equalsNoCase(o.tag,tag))return o;return null}_IncrementEffectCount(tag){this._effectCount.set(tag,(this._effectCount.get(tag)||0)+1)}_ShouldSave(ai){if(ai.hasOwnProperty("placeholder"))return false;
+if(this._saveLoadMode===3)return false;else if(ai["isMusic"]&&this._saveLoadMode===1)return false;else if(!ai["isMusic"]&&this._saveLoadMode===2)return false;else return true}SaveToJson(){return{"isSilent":this._isSilent,"masterVolume":this._masterVolume,"listenerZ":this._listenerZ,"listenerUid":this._listenerInst?this._listenerInst.GetUID():-1,"remoteUrls":[...this._remoteUrls.entries()],"playing":this._lastAIState.filter(ai=>this._ShouldSave(ai)),"effects":this._lastFxState,"analysers":this._lastAnalysersData}}LoadFromJson(o){this._isSilent=
+o["isSilent"];this._masterVolume=o["masterVolume"];this._listenerZ=o["listenerZ"];this._listenerInst=null;this._loadListenerUid=o["listenerUid"];this._remoteUrls.clear();if(o["remoteUrls"])for(const [k,v]of o["remoteUrls"])this._remoteUrls.set(k,v);this._lastAIState=o["playing"];this._lastFxState=o["effects"];this._lastAnalysersData=o["analysers"]}_OnAfterLoad(){if(this._loadListenerUid!==-1){this._listenerInst=this._runtime.GetInstanceByUID(this._loadListenerUid);this._loadListenerUid=-1;if(this._listenerInst){const wi=
+this._listenerInst.GetWorldInfo();this._listenerX=wi.GetX();this._listenerY=wi.GetY()}}for(const ai of this._lastAIState){const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(ai["bufferOriginalUrl"]);if(info){ai["bufferUrl"]=info.url;ai["bufferType"]=info.type}else ai["bufferUrl"]=null}for(const fxChainData of Object.values(this._lastFxState))for(const fxData of fxChainData)if(fxData.hasOwnProperty("bufferOriginalUrl")){const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(fxData["bufferOriginalUrl"]);
+if(info){fxData["bufferUrl"]=info.url;fxData["bufferType"]=info.type}}this.PostToDOM("load-state",{"saveLoadMode":this._saveLoadMode,"timeScale":this._runtime.GetTimeScale(),"gameTime":this._runtime.GetGameTimeRaw(),"listenerPos":[this._listenerX,this._listenerY,this._listenerZ],"isSilent":this._isSilent,"masterVolume":this._masterVolume,"playing":this._lastAIState.filter(ai=>ai["bufferUrl"]!==null),"effects":this._lastFxState})}GetDebuggerProperties(){const fxProps=[];for(const [tag,fxChainData]of Object.entries(this._lastFxState))fxProps.push({name:"$"+
+tag,value:fxChainData.map(d=>d["type"]).join(", ")});const prefix="plugins.audio.debugger";return[{title:prefix+".tag-effects",properties:fxProps},{title:prefix+".currently-playing",properties:[{name:prefix+".currently-playing-count",value:this._lastAIState.length},...this._lastAIState.map((s,index)=>({name:"$#"+index,value:`${s["bufferOriginalUrl"]} ("${s["tag"]}") ${Math.round(s["playbackTime"]*10)/10} / ${Math.round(s["duration"]*10)/10}`}))]}]}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Audio.Cnds={OnEnded(tag){return C3.equalsNoCase(this._triggerTag,tag)},OnFadeEnded(tag){return C3.equalsNoCase(this._triggerTag,tag)},PreloadsComplete(){return this._preloadCount===this._preloadTotal},AdvancedAudioSupported(){return true},IsSilent(){return this._isSilent},IsAnyPlaying(){for(const ai of this._lastAIState)if(ai["isPlaying"])return true;return false},IsTagPlaying(tag){return this._IsTagPlaying(tag)}};
+
+}
+
+{
+'use strict';const C3=self.C3;const FILTER_TYPES=["lowpass","highpass","bandpass","lowshelf","highshelf","peaking","notch","allpass"];
+C3.Plugins.Audio.Acts={async Play(file,looping,vol,tag){if(this._isSilent)return;const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":file[0],"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==
+0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"]})}finally{if(state)state["placeholder"]=this._runtime.GetTickCountNoSave()}},async PlayAtPosition(file,looping,vol,x,y,angle,innerAngle,outerAngle,outerGain,tag){if(this._isSilent)return;const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),
+isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":file[0],"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"],"panning":{"x":x,"y":y,"angle":C3.toRadians(angle),"innerAngle":C3.toRadians(innerAngle),"outerAngle":C3.toRadians(outerAngle),"outerGain":this.DbToLinear(outerGain)}})}finally{if(state)state["placeholder"]=
+this._runtime.GetTickCountNoSave()}},async PlayAtObject(file,looping,vol,objectClass,innerAngle,outerAngle,outerGain,tag){if(this._isSilent)return;if(!objectClass)return;const inst=objectClass.GetFirstPicked();if(!inst||!inst.GetWorldInfo())return;const wi=inst.GetWorldInfo();const layerAngle=wi.GetLayer().GetAngle();const [x,y]=this.rotatePtAround(wi.GetX(),wi.GetY(),-layerAngle,this._listenerX,this._listenerY);const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);
+if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":file[0],"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"],"panning":{"x":x,"y":y,"angle":wi.GetAngle()-layerAngle,"innerAngle":C3.toRadians(innerAngle),
+"outerAngle":C3.toRadians(outerAngle),"outerGain":this.DbToLinear(outerGain),"uid":inst.GetUID()}})}finally{if(state)state["placeholder"]=this._runtime.GetTickCountNoSave()}},async PlayByName(folder,filename,looping,vol,tag){if(this._isSilent)return;const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),
+isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":filename,"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"]})}finally{if(state)state["placeholder"]=this._runtime.GetTickCountNoSave()}},async PlayAtPositionByName(folder,filename,looping,vol,x,y,angle,innerAngle,outerAngle,outerGain,tag){if(this._isSilent)return;
+const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":filename,"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),
+"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"],"panning":{"x":x,"y":y,"angle":C3.toRadians(angle),"innerAngle":C3.toRadians(innerAngle),"outerAngle":C3.toRadians(outerAngle),"outerGain":this.DbToLinear(outerGain)}})}finally{if(state)state["placeholder"]=this._runtime.GetTickCountNoSave()}},async PlayAtObjectByName(folder,filename,looping,vol,objectClass,innerAngle,outerAngle,outerGain,tag){if(this._isSilent)return;if(this._isSilent)return;if(!objectClass)return;const inst=
+objectClass.GetFirstPicked();if(!inst||!inst.GetWorldInfo())return;const wi=inst.GetWorldInfo();const layerAngle=wi.GetLayer().GetAngle();const [x,y]=this.rotatePtAround(wi.GetX(),wi.GetY(),-layerAngle,this._listenerX,this._listenerY);const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),
+isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":filename,"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"],"panning":{"x":x,"y":y,"angle":wi.GetAngle()-layerAngle,"innerAngle":C3.toRadians(innerAngle),"outerAngle":C3.toRadians(outerAngle),"outerGain":this.DbToLinear(outerGain),"uid":inst.GetUID()}})}finally{if(state)state["placeholder"]=
+this._runtime.GetTickCountNoSave()}},SetLooping(tag,looping){this.PostToDOM("set-looping",{"tag":tag.toLowerCase(),"isLooping":looping===0})},SetMuted(tag,muted){this.PostToDOM("set-muted",{"tag":tag.toLowerCase(),"isMuted":muted===0})},SetVolume(tag,vol){this.PostToDOM("set-volume",{"tag":tag.toLowerCase(),"vol":this.DbToLinear(vol)})},FadeVolume(tag,vol,duration,ending){this.PostToDOM("fade-volume",{"tag":tag.toLowerCase(),"vol":this.DbToLinear(vol),"duration":duration,"stopOnEnd":ending===0})},
+async Preload(file){const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;this._preloadTotal++;await this.PostToDOMAsync("preload",{"originalUrl":file[0],"url":info.url,"type":info.type,"isMusic":isMusic});this._preloadCount++},async PreloadByName(folder,filename){const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;this._preloadTotal++;
+await this.PostToDOMAsync("preload",{"originalUrl":filename,"url":info.url,"type":info.type,"isMusic":isMusic});this._preloadCount++},SetPlaybackRate(tag,rate){this.PostToDOM("set-playback-rate",{"tag":tag.toLowerCase(),"rate":Math.max(rate,0)})},Stop(tag){this.PostToDOM("stop",{"tag":tag.toLowerCase()})},StopAll(){this.PostToDOM("stop-all")},SetPaused(tag,state){this.PostToDOM("set-paused",{"tag":tag.toLowerCase(),"paused":state===0})},Seek(tag,pos){this.PostToDOM("seek",{"tag":tag.toLowerCase(),
+"pos":pos})},SetSilent(s){if(s===2)s=this._isSilent?1:0;s=s===0;if(this._isSilent===s)return;this._isSilent=s;this.PostToDOM("set-silent",{"isSilent":s})},SetMasterVolume(vol){const mv=this.DbToLinear(vol);if(this._masterVolume===mv)return;this._masterVolume=mv;this.PostToDOM("set-master-volume",{"vol":mv})},AddFilterEffect(tag,type,freq,detune,q,gain,mix){tag=tag.toLowerCase();const typeStr=FILTER_TYPES[type];this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"filter","tag":tag,
+"params":[typeStr,freq,detune,q,gain,C3.clamp(mix/100,0,1)]})},AddDelayEffect(tag,delay,gain,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"delay","tag":tag,"params":[delay,this.DbToLinear(gain),C3.clamp(mix/100,0,1)]})},AddFlangerEffect(tag,delay,modulation,freq,feedback,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"flanger","tag":tag,"params":[delay/1E3,modulation/1E3,freq,feedback/100,C3.clamp(mix/
+100,0,1)]})},AddPhaserEffect(tag,freq,detune,q,mod,modfreq,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"phaser","tag":tag,"params":[freq,detune,q,mod,modfreq,C3.clamp(mix/100,0,1)]})},AddConvolutionEffect(tag,file,norm,mix){tag=tag.toLowerCase();const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"convolution","tag":tag,"bufferOriginalUrl":file[0],
+"bufferUrl":info.url,"bufferType":info.type,"params":[norm===0,C3.clamp(mix/100,0,1)]})},AddGainEffect(tag,g){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"gain","tag":tag,"params":[this.DbToLinear(g)]})},AddMuteEffect(tag){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"gain","tag":tag,"params":[0]})},AddTremoloEffect(tag,freq,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",
+{"type":"tremolo","tag":tag,"params":[freq,C3.clamp(mix/100,0,1)]})},AddRingModEffect(tag,freq,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"ringmod","tag":tag,"params":[freq,C3.clamp(mix/100,0,1)]})},AddDistortionEffect(tag,threshold,headroom,drive,makeupgain,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"distortion","tag":tag,"params":[this.DbToLinearNoCap(threshold),this.DbToLinearNoCap(headroom),
+drive,this.DbToLinearNoCap(makeupgain),C3.clamp(mix/100,0,1)]})},AddCompressorEffect(tag,threshold,knee,ratio,attack,release){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"compressor","tag":tag,"params":[threshold,knee,ratio,attack/1E3,release/1E3]})},AddAnalyserEffect(tag,fftSize,smoothing){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"analyser","tag":tag,"params":[fftSize,smoothing]})},RemoveEffects(tag){tag=
+tag.toLowerCase();this._effectCount.set(tag,0);this.PostToDOM("remove-effects",{"tag":tag});this._lastFxState={}},SetEffectParameter(tag,index,param,value,ramp,time){this.PostToDOM("set-effect-param",{"tag":tag.toLowerCase(),"index":Math.floor(index),"param":param,"value":value,"ramp":ramp,"time":time})},SetListenerObject(objectClass){if(!objectClass)return;const inst=objectClass.GetFirstPicked();if(!inst||!inst.GetWorldInfo())return;this._listenerInst=inst},SetListenerZ(z){this._listenerZ=z},ScheduleNextPlay(t){this._nextPlayTime=
+Math.max(t,0)},UnloadAudio(file){const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;this.PostToDOM("unload",{"url":info.url,"type":info.type,"isMusic":isMusic})},UnloadAudioByName(folder,filename){const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;this.PostToDOM("unload",{"url":info.url,"type":info.type,"isMusic":isMusic})},UnloadAll(){this.PostToDOM("unload-all")},
+AddRemoteURL(url,type,name){this._remoteUrls.set(name.toLowerCase(),{url,type})}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.Audio.Exps={Duration(tag){const a=this._GetFirstAudioStateByTag(tag);return a?a["duration"]:0},PlaybackTime(tag){const a=this._GetFirstAudioStateByTag(tag);return a?a["playbackTime"]:0},PlaybackRate(tag){const a=this._GetFirstAudioStateByTag(tag);return a?a["playbackRate"]:0},Volume(tag){const a=this._GetFirstAudioStateByTag(tag);return a?this.LinearToDb(a["volume"]):0},MasterVolume(){return this.LinearToDb(this._masterVolume)},EffectCount(tag){return this._effectCount.get(tag.toLowerCase())||0},
+AnalyserFreqBinCount(tag,index){const o=this.GetAnalyserData(tag,Math.floor(index));return o?o["binCount"]:0},AnalyserFreqBinAt(tag,index,bin){const o=this.GetAnalyserData(tag,Math.floor(index));if(!o)return 0;bin=Math.floor(bin);if(bin<0||bin>=o["binCount"])return 0;return o["freqBins"][bin]},AnalyserPeakLevel(tag,index){const o=this.GetAnalyserData(tag,Math.floor(index));return o?o["peak"]:0},AnalyserRMSLevel(tag,index){const o=this.GetAnalyserData(tag,Math.floor(index));return o?o["rms"]:0},SampleRate(){return this._sampleRate},
+CurrentTime(){if(self["C3_GetAudioContextCurrentTime"])return self["C3_GetAudioContextCurrentTime"]();else return performance.now()/1E3}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.BinaryData=class BinaryDataPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.BinaryData.Type=class BinaryDataType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
+
+}
+
+{
+'use strict';const C3=self.C3;const C3X=self.C3X;const IInstance=self.IInstance;const BASE64_DICTIONARY="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+C3.Plugins.BinaryData.Instance=class BinaryDataInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._buffer=new ArrayBuffer(0);this._view=null;this._altView=null;this._littleEndian=properties[0]===0;this._blobURL=null;this._setters=[[1,(o,v)=>this._view.setInt8(o,v)],[1,(o,v)=>this._view.setUint8(o,v)],[2,(o,v)=>this._view.setInt16(o,v,this._littleEndian)],[2,(o,v)=>this._view.setUint16(o,v,this._littleEndian)],[4,(o,v)=>this._view.setInt32(o,v,this._littleEndian)],[4,
+(o,v)=>this._view.setUint32(o,v,this._littleEndian)],[4,(o,v)=>this._view.setFloat32(o,v,this._littleEndian)],[8,(o,v)=>this._view.setFloat64(o,v,this._littleEndian)]];this._getters=[[1,o=>this._view.getInt8(o)],[1,o=>this._view.getUint8(o)],[2,o=>this._view.getInt16(o,this._littleEndian)],[2,o=>this._view.getUint16(o,this._littleEndian)],[4,o=>this._view.getInt32(o,this._littleEndian)],[4,o=>this._view.getUint32(o,this._littleEndian)],[4,o=>this._view.getFloat32(o,this._littleEndian)],[8,o=>this._view.getFloat64(o,
+this._littleEndian)]];this._UpdateViews()}_CheckValidIndex(index,size){return index>=0&&index+size<=this.ByteLength()}_ClampToLength(value){const l=this.ByteLength();if(value<0)return 0;if(value>=l)return l;return value}_ClampToValidIndex(value){const l=this.ByteLength();if(value<0)return 0;if(value>l)return l;return value}ByteLength(){return this._buffer.byteLength}_UpdateViews(){const B=this._buffer;this._view=new DataView(B);this._altView=new Uint8Array(B)}_GetBinaryDataSdkInstance(objectClass){if(!objectClass)return null;
+const target=objectClass.GetFirstPicked(this._inst);if(!target)return null;return target.GetSdkInstance()}_Get(type,offset){const getter=this._getters[type][1];const size=this._getters[type][0];if(this._CheckValidIndex(offset,size))return getter(offset);return 0}_Set(type,offset,value){const setter=this._setters[type][1];const size=this._setters[type][0];if(this._CheckValidIndex(offset,size))setter(offset,value)}_ResizeBuffer(source,length){if(!(source instanceof ArrayBuffer))throw new TypeError("Source must be an instance of ArrayBuffer");
+if(length<=source.byteLength)return source.slice(0,length);const sourceView=new Uint8Array(source);const destView=new Uint8Array(new ArrayBuffer(length));destView.set(sourceView);return destView.buffer}SetArrayBufferCopy(viewOrBuffer){if(C3.WeakIsInstanceOf(viewOrBuffer,ArrayBuffer))this._buffer=viewOrBuffer.slice(0);else{C3.WeakRequireTypedArray(viewOrBuffer);const buffer=viewOrBuffer.buffer;const byteLength=viewOrBuffer.byteLength;const byteOffset=viewOrBuffer.byteOffset;this._buffer=buffer.slice(byteOffset,
+byteOffset+byteLength)}this._UpdateViews()}SetArrayBufferTransfer(buffer){C3.WeakRequireInstanceOf(buffer,ArrayBuffer);this._buffer=buffer;this._UpdateViews()}GetArrayBufferCopy(){return this._buffer.slice(0)}GetArrayBufferReadOnly(){return this._buffer}TypedArrayToString(typedArray,utfLabel){let decoder=new TextDecoder(utfLabel||"utf-8");return decoder.decode(typedArray)}StringToArrayBuffer(str){let encoder=new TextEncoder("utf-8");return encoder.encode(str).buffer}Uint8ArrayToBase64String(uint8array){const read=
+i=>i<length?uint8array[i]:(padding++,0);const length=uint8array.length;const mask=63;const output=[];let padding=0;let i=0;while(i<length){const chunk=(read(i++)<<16)+(read(i++)<<8)+read(i++);output.push(BASE64_DICTIONARY[chunk>>>18&mask],BASE64_DICTIONARY[chunk>>>12&mask],BASE64_DICTIONARY[chunk>>>6&mask],BASE64_DICTIONARY[chunk&mask])}i=output.length-padding;while(i<output.length)output[i++]="=";return output.join("")}Base64StringToUint8Array(str){const paddingIndex=str.indexOf("=");const originalLength=
+str.length;const alignedLength=originalLength>>2<<2;const alignmentOffset=originalLength-alignedLength;const padding=paddingIndex>-1?originalLength-paddingIndex:0;if(padding>2)throw new Error("Invalid padding");const isLegacy=alignedLength===paddingIndex;let unpaddedLength=originalLength;if(isLegacy)unpaddedLength=alignedLength-padding;else if(alignmentOffset===0&&paddingIndex>-1)unpaddedLength-=padding;const outputLength=unpaddedLength*3>>2;const output=new Uint8Array(outputLength);let readIndex=
+0;let writeIndex=0;const read=()=>{if(readIndex>=unpaddedLength)return 0;const n=str.charCodeAt(readIndex++);if(n>64&&n<91)return n-65;if(n>96&&n<123)return n-71;if(n>47&&n<58)return n+4;if(n===43)return 62;if(n===47)return 63;if(n===61)return 0;throw new Error(`Invalid character at column ${readIndex-1}`);};const push=v=>writeIndex<outputLength&&(output[writeIndex++]=v);while(writeIndex<outputLength){const chunk=(read()<<18)+(read()<<12)+(read()<<6)+read();push(chunk>>>16&255);push(chunk>>>8&255);
+push(chunk&255)}return output}GetScriptInterfaceClass(){return self.IBinaryDataInstance}};const map=new WeakMap;
+self.IBinaryDataInstance=class IBinaryDataInstance extends IInstance{constructor(){super();map.set(this,IInstance._GetInitInst().GetSdkInstance())}setArrayBufferCopy(viewOrBuffer){if(!(viewOrBuffer instanceof ArrayBuffer)&&!C3.IsTypedArray(viewOrBuffer))throw new TypeError("invalid parameter");map.get(this).SetArrayBufferCopy(viewOrBuffer)}setArrayBufferTransfer(arrayBuffer){if(!(arrayBuffer instanceof ArrayBuffer))throw new TypeError("invalid parameter");map.get(this).SetArrayBufferTransfer(arrayBuffer)}getArrayBufferCopy(){return map.get(this).GetArrayBufferCopy()}getArrayBufferReadOnly(){return map.get(this).GetArrayBufferReadOnly()}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.BinaryData.Cnds={CompareLength(operator,length){return C3.compare(this.ByteLength(),operator,length)},CompareValue(type,offset,operator,value){return C3.compare(this._Get(type,offset),operator,value)}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.BinaryData.Acts={SetEndian(b){this._littleEndian=b===0},SetLength(byteLength){this._buffer=this._ResizeBuffer(this._buffer,byteLength);this._UpdateViews()},SetFromBase64(str){try{const view=this.Base64StringToUint8Array(str);this.SetArrayBufferTransfer(view.buffer)}catch(err){console.warn("[BinaryData] Invalid base64 string: ",err)}},SetFromBinaryData(objectClass){const otherSdkInst=this._GetBinaryDataSdkInstance(objectClass);if(otherSdkInst===null)return;const buffer=otherSdkInst.GetArrayBufferCopy();
+this.SetArrayBufferTransfer(buffer)},SetFromText(str){const arrayBuffer=this.StringToArrayBuffer(str);this.SetArrayBufferTransfer(arrayBuffer)},Fill(type,value,offset,length){const setter=this._setters[type][1];const size=this._setters[type][0];const start=this._ClampToLength(offset);let end=0;if(length===-1)end==this.ByteLength();else end=this._ClampToLength(start+length);if(end<=start)return;const correctedLength=Math.floor((end-start)/size)*size;end=start+correctedLength;for(let i=start;i<end;i+=
+size)setter(i,value)},Copy(objectClass,start,length,target){const otherSdkInst=this._GetBinaryDataSdkInstance(objectClass);if(otherSdkInst===null)return;target=this._ClampToValidIndex(target);start=otherSdkInst._ClampToLength(start);let end;if(length===-1)end=otherSdkInst.ByteLength();else end=otherSdkInst._ClampToLength(start+length);if(end<=start)return;const selfSize=this.ByteLength();if(target+end-start>selfSize){const capacity=selfSize-target;end=start+capacity;if(end<=start)return}if(otherSdkInst===
+this)this._altView.copyWithin(target,start,end);else{const sourceBuffer=otherSdkInst.GetArrayBufferReadOnly();const slicedView=new Uint8Array(sourceBuffer,start,end-start);this._altView.set(slicedView,target)}},SetValue(type,value,offset){this._Set(type,offset,value)}};
+
+}
+
+{
+'use strict';const C3=self.C3;const T={int8:0,uint8:1,int16:2,uint16:3,int32:4,uint32:5,float32:6,float64:7};
+C3.Plugins.BinaryData.Exps={GetURL(){if(this._blobURL!==null)URL.revokeObjectURL(this._blobURL);const blob=new Blob([this._altView],{type:""});const url=URL.createObjectURL(blob);this._blobURL=url;return url},GetBase64(){return this.Uint8ArrayToBase64String(this._altView)},ByteLength(){return this.ByteLength()},GetInt8(offset){return this._Get(T.int8,offset)},GetUint8(offset){return this._Get(T.uint8,offset)},GetInt16(offset){return this._Get(T.int16,offset)},GetUint16(offset){return this._Get(T.uint16,
+offset)},GetInt32(offset){return this._Get(T.int32,offset)},GetUint32(offset){return this._Get(T.uint32,offset)},GetFloat32(offset){return this._Get(T.float32,offset)},GetFloat64(offset){return this._Get(T.float64,offset)},GetText(offset,length){let result="";if(this._CheckValidIndex(offset,length)){const view=this._altView.subarray(offset,offset+length);try{result=this.TypedArrayToString(view)}catch(e){console.warn("Failed to decode text",e)}}return result}};
+
+}
+
+{
 'use strict';const C3=self.C3;C3.Plugins.Browser=class BrowserPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
 
 }
@@ -3226,6 +3387,312 @@ Hash(){if(this._runtime.IsInWorker())return(new URL(this._initLocationStr)).hash
 Title(){return this._docTitle},Language(){return navigator.language},Platform(){return navigator.platform},UserAgent(){return navigator.userAgent},ExecJS(jsStr){let result=0;try{result=eval(jsStr)}catch(err){console.error("Error executing JavaScript: ",err)}if(typeof result==="number"||typeof result==="string")return result;if(typeof result==="boolean")return result?1:0;else return 0},Name(){return navigator.appName},Version(){return navigator.appVersion},Product(){return navigator.product},Vendor(){return navigator.vendor},
 BatteryLevel(){return 1},BatteryTimeLeft(){return Infinity},Bandwidth(){const connection=navigator["connection"];if(connection)return connection["downlink"]||connection["downlinkMax"]||connection["bandwidth"]||Infinity;else return Infinity},ConnectionType(){const connection=navigator["connection"];if(connection)return connection["type"]||"unknown";else return"unknown"},DevicePixelRatio(){return self.devicePixelRatio},ScreenWidth(){return this._screenWidth},ScreenHeight(){return this._screenHeight},
 WindowInnerWidth(){return this._runtime.GetCanvasManager().GetLastWidth()},WindowInnerHeight(){return this._runtime.GetCanvasManager().GetLastHeight()},WindowOuterWidth(){return this._windowOuterWidth},WindowOuterHeight(){return this._windowOuterWidth}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Date=class DatePlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Date.Type=class DateType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Date.Instance=class DateInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst)}};
+
+}
+
+{
+'use strict';const C3=self.C3;const getters=[];getters[0]=[ts=>C3.Plugins.Date.Exps.GetYear(ts),ts=>C3.Plugins.Date.Exps.GetMonth(ts),ts=>C3.Plugins.Date.Exps.GetDate(ts),ts=>C3.Plugins.Date.Exps.GetDay(ts),ts=>C3.Plugins.Date.Exps.GetHours(ts),ts=>C3.Plugins.Date.Exps.GetMinutes(ts),ts=>C3.Plugins.Date.Exps.GetSeconds(ts),ts=>C3.Plugins.Date.Exps.GetMilliseconds(ts)];
+getters[1]=[ts=>C3.Plugins.Date.Exps.GetUTCYear(ts),ts=>C3.Plugins.Date.Exps.GetUTCMonth(ts),ts=>C3.Plugins.Date.Exps.GetUTCDate(ts),ts=>C3.Plugins.Date.Exps.GetUTCDay(ts),ts=>C3.Plugins.Date.Exps.GetUTCHours(ts),ts=>C3.Plugins.Date.Exps.GetUTCMinutes(ts),ts=>C3.Plugins.Date.Exps.GetUTCSeconds(ts),ts=>C3.Plugins.Date.Exps.GetUTCMilliseconds(ts)];const parse=dateString=>C3.Plugins.Date.Exps.Parse(dateString);
+C3.Plugins.Date.Cnds={CompareTimeStamps(first,cmp,second){return C3.compare(first,cmp,second)},CompareDateStrings(first,cmp,second){return C3.compare(parse(first),cmp,parse(second))},CompareTimestampParts(first,cmp,second,part){return C3.compare(getters[1][part](first),cmp,getters[1][part](second))},CompareDateStringParts(first,cmp,second,part,mode){return C3.compare(getters[mode][part](parse(first)),cmp,getters[mode][part](parse(second)))}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Date.Acts={};
+
+}
+
+{
+'use strict';const C3=self.C3;const getters=new Map;getters.set("local",new Map([["year",ts=>(new Date(ts)).getFullYear()],["month",ts=>(new Date(ts)).getMonth()],["date",ts=>(new Date(ts)).getDate()],["day",ts=>(new Date(ts)).getDay()],["hours",ts=>(new Date(ts)).getHours()],["minutes",ts=>(new Date(ts)).getMinutes()],["seconds",ts=>(new Date(ts)).getSeconds()],["milliseconds",ts=>(new Date(ts)).getMilliseconds()]]));
+getters.set("universal",new Map([["year",ts=>(new Date(ts)).getUTCFullYear()],["month",ts=>(new Date(ts)).getUTCMonth()],["date",ts=>(new Date(ts)).getUTCDate()],["day",ts=>(new Date(ts)).getUTCDay()],["hours",ts=>(new Date(ts)).getUTCHours()],["minutes",ts=>(new Date(ts)).getUTCMinutes()],["seconds",ts=>(new Date(ts)).getUTCSeconds()],["milliseconds",ts=>(new Date(ts)).getUTCMilliseconds()]]));const setters=new Map;
+setters.set("local",new Map([["year",(ts,year)=>(new Date(ts)).setFullYear(year)],["month",(ts,month)=>(new Date(ts)).setMonth(month)],["date",(ts,date)=>(new Date(ts)).setDate(date)],["hours",(ts,hours)=>(new Date(ts)).setHours(hours)],["minutes",(ts,minutes)=>(new Date(ts)).setMinutes(minutes)],["seconds",(ts,seconds)=>(new Date(ts)).setSeconds(seconds)],["milliseconds",(ts,milliseconds)=>(new Date(ts)).setMilliseconds(milliseconds)]]));
+setters.set("universal",new Map([["year",(ts,year)=>(new Date(ts)).setUTCFullYear(year)],["month",(ts,month)=>(new Date(ts)).setUTCMonth(month)],["date",(ts,date)=>(new Date(ts)).setUTCDate(date)],["hours",(ts,hours)=>(new Date(ts)).setUTCHours(hours)],["minutes",(ts,minutes)=>(new Date(ts)).setUTCMinutes(minutes)],["seconds",(ts,seconds)=>(new Date(ts)).setUTCSeconds(seconds)],["milliseconds",(ts,milliseconds)=>(new Date(ts)).setUTCMilliseconds(milliseconds)]]));
+C3.Plugins.Date.Exps={ToString(timeStamp){return(new Date(timeStamp)).toString()},ToDateString(timeStamp){return(new Date(timeStamp)).toDateString()},ToTimeString(timeStamp){return(new Date(timeStamp)).toTimeString()},ToLocaleString(timeStamp){return(new Date(timeStamp)).toLocaleString()},ToLocaleDateString(timeStamp){return(new Date(timeStamp)).toLocaleDateString()},ToLocaleTimeString(timeStamp){return(new Date(timeStamp)).toLocaleTimeString()},ToUTCString(timeStamp){return(new Date(timeStamp)).toUTCString()},
+Parse(dateString){return Date.parse(dateString)},Get(year,month,day,hours,minutes,seconds,milliseconds){return Date.UTC(year,month,day,hours,minutes,seconds,milliseconds)},Now(){return Date.now()},TimezoneOffset(){return(new Date(Date.now())).getTimezoneOffset()},GetYear(timeStamp){return getters.get("local").get("year")(timeStamp)},GetUTCYear(timeStamp){return getters.get("universal").get("year")(timeStamp)},GetMonth(timeStamp){return getters.get("local").get("month")(timeStamp)},GetUTCMonth(timeStamp){return getters.get("universal").get("month")(timeStamp)},
+GetDate(timeStamp){return getters.get("local").get("date")(timeStamp)},GetUTCDate(timeStamp){return getters.get("universal").get("date")(timeStamp)},GetDay(timeStamp){return getters.get("local").get("day")(timeStamp)},GetUTCDay(timeStamp){return getters.get("universal").get("day")(timeStamp)},GetHours(timeStamp){return getters.get("local").get("hours")(timeStamp)},GetUTCHours(timeStamp){return getters.get("universal").get("hours")(timeStamp)},GetMinutes(timeStamp){return getters.get("local").get("minutes")(timeStamp)},
+GetUTCMinutes(timeStamp){return getters.get("universal").get("minutes")(timeStamp)},GetSeconds(timeStamp){return getters.get("local").get("seconds")(timeStamp)},GetUTCSeconds(timeStamp){return getters.get("universal").get("seconds")(timeStamp)},GetMilliseconds(timeStamp){return getters.get("local").get("milliseconds")(timeStamp)},GetUTCMilliseconds(timeStamp){return getters.get("universal").get("milliseconds")(timeStamp)},ChangeYear(timeStamp,year){return setters.get("local").get("year")(timeStamp,
+year)},ChangeUTCYear(timeStamp,year){return setters.get("universal").get("year")(timeStamp,year)},ChangeMonth(timeStamp,month){return setters.get("local").get("month")(timeStamp,month)},ChangeUTCMonth(timeStamp,month){return setters.get("universal").get("month")(timeStamp,month)},ChangeDate(timeStamp,date){return setters.get("local").get("date")(timeStamp,date)},ChangeUTCDate(timeStamp,date){return setters.get("universal").get("date")(timeStamp,date)},ChangeDay(timeStamp,targetDay){const year=C3.Plugins.Date.Exps.GetYear(timeStamp);
+const month=C3.Plugins.Date.Exps.GetMonth(timeStamp);const date=C3.Plugins.Date.Exps.GetDate(timeStamp);const hours=C3.Plugins.Date.Exps.GetHours(timeStamp);const minutes=C3.Plugins.Date.Exps.GetMinutes(timeStamp);const seconds=C3.Plugins.Date.Exps.GetSeconds(timeStamp);const milliseconds=C3.Plugins.Date.Exps.GetMilliseconds(timeStamp);const currentDay=C3.Plugins.Date.Exps.GetDay(timeStamp);const distance=targetDay-currentDay;return(new Date(year,month,date+distance,hours,minutes,seconds,milliseconds)).getTime()},
+ChangeUTCDay(timeStamp,targetDay){const year=C3.Plugins.Date.Exps.GetUTCYear(timeStamp);const month=C3.Plugins.Date.Exps.GetUTCMonth(timeStamp);const date=C3.Plugins.Date.Exps.GetUTCDate(timeStamp);const hours=C3.Plugins.Date.Exps.GetUTCHours(timeStamp);const minutes=C3.Plugins.Date.Exps.GetUTCMinutes(timeStamp);const seconds=C3.Plugins.Date.Exps.GetUTCSeconds(timeStamp);const milliseconds=C3.Plugins.Date.Exps.GetUTCMilliseconds(timeStamp);const currentDay=C3.Plugins.Date.Exps.GetUTCDay(timeStamp);
+const distance=targetDay-currentDay;return C3.Plugins.Date.Exps.Get(year,month,date+distance,hours,minutes,seconds,milliseconds)},ChangeHours(timeStamp,hours){return setters.get("local").get("hours")(timeStamp,hours)},ChangeUTCHours(timeStamp,hours){return setters.get("universal").get("hours")(timeStamp,hours)},ChangeMinutes(timeStamp,minutes){return setters.get("local").get("minutes")(timeStamp,minutes)},ChangeUTCMinutes(timeStamp,minutes){return setters.get("universal").get("minutes")(timeStamp,
+minutes)},ChangeSeconds(timeStamp,seconds){return setters.get("local").get("seconds")(timeStamp,seconds)},ChangeUTCSeconds(timeStamp,seconds){return setters.get("universal").get("seconds")(timeStamp,seconds)},ChangeMilliseconds(timeStamp,milliseconds){return setters.get("local").get("milliseconds")(timeStamp,milliseconds)},ChangeUTCMilliseconds(timeStamp,milliseconds){return setters.get("universal").get("milliseconds")(timeStamp,milliseconds)},Difference(firstTimeStamp,secondTimeStamp){return secondTimeStamp-
+firstTimeStamp},ToTimerHours(milliseconds){return Math.trunc(C3.Plugins.Date.Exps.ToTotalHours(milliseconds))},ToTimerMinutes(milliseconds){return Math.trunc(C3.Plugins.Date.Exps.ToTotalMinutes(milliseconds))%60},ToTimerSeconds(milliseconds){return Math.trunc(C3.Plugins.Date.Exps.ToTotalSeconds(milliseconds))%60},ToTimerMilliseconds(milliseconds){return milliseconds%1E3},ToTotalHours(milliseconds){return milliseconds/(1E3*60*60)},ToTotalMinutes(milliseconds){return milliseconds/(1E3*60)},ToTotalSeconds(milliseconds){return milliseconds/
+1E3}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Keyboard=class KeyboardPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;const C3X=self.C3X;C3.Plugins.Keyboard.Type=class KeyboardType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}GetScriptInterfaceClass(){return self.IKeyboardObjectType}};let keyboardObjectType=null;function GetKeyboardSdkInstance(){return keyboardObjectType.GetSingleGlobalInstance().GetSdkInstance()}
+self.IKeyboardObjectType=class IKeyboardObjectType extends self.IObjectClass{constructor(objectType){super(objectType);keyboardObjectType=objectType;objectType.GetRuntime()._GetCommonScriptInterfaces().keyboard=this}isKeyDown(keyOrCode){const keyboardInst=GetKeyboardSdkInstance();if(typeof keyOrCode==="string")return keyboardInst.IsKeyDown(keyOrCode);else if(typeof keyOrCode==="number")return keyboardInst.IsKeyCodeDown(keyOrCode);else throw new TypeError("expected string or number");}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.Keyboard.Instance=class KeyboardInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._keysDownByString=new Set;this._keysDownByWhich=new Set;this._triggerWhich=0;this._triggerString="";this._triggerTypedKey="";const rt=this.GetRuntime().Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"keydown",e=>this._OnKeyDown(e.data)),C3.Disposable.From(rt,"keyup",e=>this._OnKeyUp(e.data)),C3.Disposable.From(rt,"window-blur",()=>this._OnWindowOrKeyboardBlur()),
+C3.Disposable.From(rt,"keyboard-blur",()=>this._OnWindowOrKeyboardBlur()))}Release(){super.Release()}_OnKeyDown(e){const which=e["which"];const keyString=e["code"]||which.toString();const typedKey=e["key"];if(this._keysDownByString.has(keyString))return;this._keysDownByString.add(keyString);this._keysDownByWhich.add(which);this._triggerString=keyString;this._triggerWhich=which;this._triggerTypedKey=typedKey;this.Trigger(C3.Plugins.Keyboard.Cnds.OnAnyKey);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKey);
+this.Trigger(C3.Plugins.Keyboard.Cnds.OnLeftRightKeyPressed);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyCode)}_OnKeyUp(e){const which=e["which"];const keyString=e["code"]||which.toString();const typedKey=e["key"];this._keysDownByString.delete(keyString);this._keysDownByWhich.delete(which);this._triggerString=keyString;this._triggerWhich=which;this._triggerTypedKey=typedKey;this.Trigger(C3.Plugins.Keyboard.Cnds.OnAnyKeyReleased);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyReleased);this.Trigger(C3.Plugins.Keyboard.Cnds.OnLeftRightKeyReleased);
+this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyCodeReleased)}_OnWindowOrKeyboardBlur(){for(const which of this._keysDownByWhich){this._keysDownByWhich.delete(which);this._triggerWhich=which;this.Trigger(C3.Plugins.Keyboard.Cnds.OnAnyKeyReleased);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyReleased);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyCodeReleased)}this._keysDownByString.clear()}IsKeyDown(str){return this._keysDownByString.has(str)}IsKeyCodeDown(which){return this._keysDownByWhich.has(which)}SaveToJson(){return{"tk":this._triggerWhich,
+"tkk":this._triggerTypedKey}}LoadFromJson(o){this._triggerWhich=o["tk"];if(o.hasOwnProperty("tkk"))this._triggerTypedKey=o["tkk"]}GetDebuggerProperties(){const prefix="plugins.keyboard";return[{title:prefix+".name",properties:[{name:prefix+".debugger.last-key-code",value:this._triggerWhich},{name:prefix+".debugger.last-key-string",value:C3.Plugins.Keyboard.Exps.StringFromKeyCode(this._triggerWhich)},{name:prefix+".debugger.last-typed-key",value:this._triggerTypedKey}]}]}};
+
+}
+
+{
+'use strict';const C3=self.C3;const LEFTRIGHT_KEY_STRINGS=["ShiftLeft","ShiftRight","ControlLeft","ControlRight","AltLeft","AltRight","MetaLeft","MetaRight"];
+C3.Plugins.Keyboard.Cnds={IsKeyDown(which){return this._keysDownByWhich.has(which)},OnKey(which){return this._triggerWhich===which},OnAnyKey(){return true},OnAnyKeyReleased(){return true},OnKeyReleased(which){return this._triggerWhich===which},IsKeyCodeDown(which){which=Math.floor(which);return this._keysDownByWhich.has(which)},OnKeyCode(which){return this._triggerWhich===which},OnKeyCodeReleased(which){return this._triggerWhich===which},OnLeftRightKeyPressed(index){const keyString=LEFTRIGHT_KEY_STRINGS[index];
+return this._triggerString===keyString},OnLeftRightKeyReleased(index){const keyString=LEFTRIGHT_KEY_STRINGS[index];return this._triggerString===keyString},IsLeftRightKeyDown(index){const keyString=LEFTRIGHT_KEY_STRINGS[index];return this._keysDownByString.has(keyString)}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Keyboard.Acts={};
+
+}
+
+{
+'use strict';const C3=self.C3;
+function StringFromCharCode(kc){kc=Math.floor(kc);switch(kc){case 8:return"backspace";case 9:return"tab";case 13:return"enter";case 16:return"shift";case 17:return"control";case 18:return"alt";case 19:return"pause";case 20:return"capslock";case 27:return"esc";case 33:return"pageup";case 34:return"pagedown";case 35:return"end";case 36:return"home";case 37:return"\u2190";case 38:return"\u2191";case 39:return"\u2192";case 40:return"\u2193";case 45:return"insert";case 46:return"del";case 91:return"left window key";
+case 92:return"right window key";case 93:return"select";case 96:return"numpad 0";case 97:return"numpad 1";case 98:return"numpad 2";case 99:return"numpad 3";case 100:return"numpad 4";case 101:return"numpad 5";case 102:return"numpad 6";case 103:return"numpad 7";case 104:return"numpad 8";case 105:return"numpad 9";case 106:return"numpad *";case 107:return"numpad +";case 109:return"numpad -";case 110:return"numpad .";case 111:return"numpad /";case 112:return"F1";case 113:return"F2";case 114:return"F3";
+case 115:return"F4";case 116:return"F5";case 117:return"F6";case 118:return"F7";case 119:return"F8";case 120:return"F9";case 121:return"F10";case 122:return"F11";case 123:return"F12";case 144:return"numlock";case 145:return"scroll lock";case 186:return";";case 187:return"=";case 188:return",";case 189:return"-";case 190:return".";case 191:return"/";case 192:return"'";case 219:return"[";case 220:return"\\";case 221:return"]";case 222:return"#";case 223:return"`";default:return String.fromCharCode(kc)}}
+C3.Plugins.Keyboard.Exps={LastKeyCode(){return this._triggerWhich},StringFromKeyCode(kc){return StringFromCharCode(kc)},TypedKey(){return this._triggerTypedKey}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.LocalStorage=class LocalStoragePlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.LocalStorage.Type=class LocalStorageType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.LocalStorage.Instance=class LocalStorageInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._currentKey="";this._lastValue="";this._keyNamesList=[];this._errorMessage="";this._pendingGets=0;this._pendingSets=0;this._storage=this._runtime._GetProjectStorage();this._debugCache=new Map;this._isLoadingDebugCache=false}Release(){super.Release()}async _TriggerStorageError(err){this._errorMessage=this._GetErrorString(err);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnError)}_GetErrorString(err){if(!err)return"unknown error";else if(typeof err===
+"string")return err;else if(typeof err.message==="string")return err.message;else if(typeof err.name==="string")return err.name;else if(typeof err.data==="string")return err.data;else return"unknown error"}GetDebuggerProperties(){if(!this._isLoadingDebugCache)this._DebugCacheStorage();return[{title:"plugins.localstorage.name",properties:[...this._debugCache.entries()].map(entry=>({name:"$"+entry[0],value:entry[1],onedit:v=>this._storage.setItem(entry[0],v)}))}]}async _DebugCacheStorage(){this._isLoadingDebugCache=
+true;try{const keyList=await this._storage.keys();keyList.sort((a,b)=>{const la=a.toLowerCase();const lb=b.toLowerCase();if(la<lb)return-1;else if(lb<la)return 1;else return 0});const values=await Promise.all(keyList.map(key=>this._storage.getItem(key)));this._debugCache.clear();for(let i=0,len=keyList.length;i<len;++i)this._debugCache.set(keyList[i],values[i])}catch(err){console.warn("[C3 debugger] Error displaying local storage: ",err)}finally{this._isLoadingDebugCache=false}}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.LocalStorage.Cnds={OnItemSet(key){return this._currentKey===key},OnAnyItemSet(){return true},OnItemGet(key){return this._currentKey===key},OnAnyItemGet(){return true},OnItemRemoved(key){return this._currentKey===key},OnAnyItemRemoved(){return true},OnCleared(){return true},OnAllKeyNamesLoaded(){return true},OnError(){return true},OnItemExists(key){return this._currentKey===key},OnItemMissing(key){return this._currentKey===key},CompareKey(cmp,key){return C3.compare(this._currentKey,cmp,
+key)},CompareValue(cmp,v){return C3.compare(this._lastValue,cmp,v)},IsProcessingSets(){return this._pendingSets>0},IsProcessingGets(){return this._pendingGets>0},OnAllSetsComplete(){return true},OnAllGetsComplete(){return true}};
+
+}
+
+{
+'use strict';const C3=self.C3;function IsExpressionType(x){return typeof x==="string"||typeof x==="number"}
+C3.Plugins.LocalStorage.Acts={async SetItem(key,value){this._pendingSets++;try{const valueSet=await this._storage.setItem(key,value);await this.ScheduleTriggers(async()=>{this._currentKey=key;this._lastValue=valueSet;await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemSet);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemSet)})}catch(err){await this._TriggerStorageError(err)}finally{this._pendingSets--;if(this._pendingSets===0)await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllSetsComplete)}},
+async SetBinaryItem(key,objectClass){if(!objectClass)return;const inst=objectClass.GetFirstPicked(this._inst);if(!inst)return;const sdkInst=inst.GetSdkInstance();if(!sdkInst)return;const buffer=sdkInst.GetArrayBufferReadOnly();this._pendingSets++;try{await this._storage.setItem(key,buffer);await this.ScheduleTriggers(async()=>{this._currentKey=key;this._lastValue="";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemSet);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemSet)})}catch(err){await this._TriggerStorageError(err)}finally{this._pendingSets--;
+if(this._pendingSets===0)await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllSetsComplete)}},async GetItem(key){this._pendingGets++;try{const value=await this._storage.getItem(key);await this.ScheduleTriggers(async()=>{this._currentKey=key;this._lastValue=IsExpressionType(value)?value:"";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemGet);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemGet)})}catch(err){await this._TriggerStorageError(err)}finally{this._pendingGets--;
+if(this._pendingGets===0)await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllGetsComplete)}},async GetBinaryItem(key,objectClass){if(!objectClass)return;const inst=objectClass.GetFirstPicked(this._inst);if(!inst)return;const sdkInst=inst.GetSdkInstance();this._pendingGets++;try{let value=await this._storage.getItem(key);value=value instanceof ArrayBuffer?value:new ArrayBuffer(0);await this.ScheduleTriggers(async()=>{this._lastValue="";this._currentKey=key;sdkInst.SetArrayBufferTransfer(value);
+await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemGet);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemGet)})}catch(err){await this._TriggerStorageError(err)}finally{this._pendingGets--;if(this._pendingGets===0)await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllGetsComplete)}},async CheckItemExists(key){try{const value=await this._storage.getItem(key);await this.ScheduleTriggers(async()=>{this._currentKey=key;if(typeof value==="undefined"||value===null){this._lastValue=
+"";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemMissing)}else{this._lastValue=IsExpressionType(value)?value:"";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemExists)}})}catch(err){await this._TriggerStorageError(err)}},async RemoveItem(key){try{await this._storage.removeItem(key);await this.ScheduleTriggers(async()=>{this._currentKey=key;this._lastValue="";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemRemoved);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemRemoved)})}catch(err){await this._TriggerStorageError(err)}},
+async ClearStorage(){try{await this._storage.clear();await this.ScheduleTriggers(async()=>{this._currentKey="";this._lastValue="";C3.clearArray(this._keyNamesList);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnCleared)})}catch(err){await this._TriggerStorageError(err)}},async GetAllKeyNames(){try{const keyList=await this._storage.keys();await this.ScheduleTriggers(async()=>{this._keyNamesList=keyList;await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllKeyNamesLoaded)})}catch(err){await this._TriggerStorageError(err)}}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.LocalStorage.Exps={ItemValue(){return this._lastValue},Key(){return this._currentKey},KeyCount(){return this._keyNamesList.length},KeyAt(i){i=Math.floor(i);if(i<0||i>=this._keyNamesList.length)return"";return this._keyNamesList[i]},ErrorMessage(){return this._errorMessage}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.PlatformInfo=class PlatformInfoPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.PlatformInfo.Type=class PlatformInfoType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
+
+}
+
+{
+'use strict';const C3=self.C3;const DOM_COMPONENT_ID="platform-info";
+C3.Plugins.PlatformInfo.Instance=class PlatformInfoInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._screenWidth=0;this._screenHeight=0;this._windowOuterWidth=0;this._windowOuterHeight=0;this._safeAreaInset=[0,0,0,0];this._supportsWakeLock=false;this._isWakeLockActive=false;this.AddDOMMessageHandlers([["window-resize",e=>this._OnWindowResize(e)],["wake-lock-acquired",e=>this._OnWakeLockAcquired(e)],["wake-lock-error",e=>this._OnWakeLockError(e)],["wake-lock-released",
+e=>this._OnWakeLockReleased(e)]]);if(navigator.connection)navigator.connection.addEventListener("change",()=>this._OnNetworkChange());this._runtime.AddLoadPromise(this.PostToDOMAsync("get-initial-state").then(data=>{this._screenWidth=data["screenWidth"];this._screenHeight=data["screenHeight"];this._windowOuterWidth=data["windowOuterWidth"];this._windowOuterHeight=data["windowOuterHeight"];this._safeAreaInset=data["safeAreaInset"];this._supportsWakeLock=data["supportsWakeLock"]}))}Release(){super.Release()}_OnWindowResize(e){this._windowOuterWidth=
+e["windowOuterWidth"];this._windowOuterHeight=e["windowOuterHeight"];this._safeAreaInset=e["safeAreaInset"]}async _OnNetworkChange(){await this.TriggerAsync(C3.Plugins.PlatformInfo.Cnds.OnNetworkChange)}async _OnWakeLockAcquired(){this._isWakeLockActive=true;await this.TriggerAsync(C3.Plugins.PlatformInfo.Cnds.OnWakeLockAcquired)}async _OnWakeLockError(){this._isWakeLockActive=false;await this.TriggerAsync(C3.Plugins.PlatformInfo.Cnds.OnWakeLockError)}async _OnWakeLockReleased(){this._isWakeLockActive=
+false;await this.TriggerAsync(C3.Plugins.PlatformInfo.Cnds.OnWakeLockReleased)}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.PlatformInfo.Cnds={IsOnMobile(){return C3.Platform.IsMobile},IsOnWindows(){return C3.Platform.OS==="Windows"},IsOnMacOS(){return C3.Platform.OS==="Mac OS X"},IsOnLinux(){return C3.Platform.OS==="Linux"},IsOnChromeOS(){return C3.Platform.OS==="Chrome OS"},IsOnAndroid(){return C3.Platform.OS==="Android"},IsOniOS(){return C3.Platform.OS==="iOS"},IsWebExport(){const exportType=this._runtime.GetExportType();return exportType==="html5"||exportType==="scirra-arcade"||exportType==="preview"||exportType===
+"instant-games"},IsCordovaExport(){return this._runtime.IsCordova()},IsNWjsExport(){return this._runtime.GetExportType()==="nwjs"},IsWindowsUWPExport(){return this._runtime.GetExportType()==="windows-uwp"},IsWindowsWebView2Export(){return this._runtime.GetExportType()==="windows-webview2"},IsMacOSWKWebView2Export(){return this._runtime.GetExportType()==="macos-wkwebview"},OnNetworkChange(){return true},OnWakeLockAcquired(){return true},OnWakeLockError(){return true},OnWakeLockReleased(){return true},
+IsWakeLockActive(){return this._isWakeLockActive},IsWakeLockSupported(){return this._supportsWakeLock}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.PlatformInfo.Acts={RequestWakeLock(){if(!this._supportsWakeLock)return;this._PostToDOMMaybeSync("request-wake-lock")},ReleaseWakeLock(){if(!this._supportsWakeLock)return;this._isWakeLockActive=false;this.PostToDOM("release-wake-lock")}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.PlatformInfo.Exps={Renderer(){let ret="";if(this._runtime.GetWebGPURenderer())ret="webgpu";else ret="webgl"+this._runtime.GetWebGLRenderer().GetWebGLVersionNumber();if(this._runtime.GetRenderer().HasMajorPerformanceCaveat())ret+="-software";return ret},RendererDetail(){return this._runtime.GetWebGLRenderer().GetUnmaskedRenderer()},DevicePixelRatio(){return self.devicePixelRatio},ScreenWidth(){return this._screenWidth},ScreenHeight(){return this._screenHeight},WindowInnerWidth(){return this._runtime.GetCanvasManager().GetLastWidth()},
+WindowInnerHeight(){return this._runtime.GetCanvasManager().GetLastHeight()},WindowOuterWidth(){return this._windowOuterWidth},WindowOuterHeight(){return this._windowOuterHeight},CanvasCssWidth(){return this._runtime.GetCanvasManager().GetCssWidth()},CanvasCssHeight(){return this._runtime.GetCanvasManager().GetCssHeight()},CanvasDeviceWidth(){return this._runtime.GetCanvasManager().GetDeviceWidth()},CanvasDeviceHeight(){return this._runtime.GetCanvasManager().GetDeviceHeight()},Downlink(){if(navigator.connection)return navigator.connection["downlink"]||
+0;else return 0},DownlinkMax(){if(navigator.connection)return navigator.connection["downlinkMax"]||0;else return 0},ConnectionType(){if(navigator.connection)return navigator.connection["type"]||"unknown";else return"unknown"},ConnectionEffectiveType(){if(navigator.connection)return navigator.connection["effectiveType"]||"unknown";else return"unknown"},ConnectionRTT(){if(navigator.connection)return navigator.connection["rtt"]||0;else return 0},HardwareConcurrency(){return navigator.hardwareConcurrency||
+0},DeviceMemory(){return navigator.deviceMemory||0},SafeAreaInsetTop(){return this._safeAreaInset[0]},SafeAreaInsetRight(){return this._safeAreaInset[1]},SafeAreaInsetBottom(){return this._safeAreaInset[2]},SafeAreaInsetLeft(){return this._safeAreaInset[3]}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Share=class SharePlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Share.Type=class ShareType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
+
+}
+
+{
+'use strict';const C3=self.C3;const DOM_COMPONENT_ID="share";
+C3.Plugins.Share.Instance=class ShareInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._isSupported=false;this._isFilesSupported=false;this._files=[];this.AddDOMMessageHandlers([["share-completed",()=>this._OnShareCompleted()],["share-failed",()=>this._OnShareFailed()]]);this._runtime.AddLoadPromise(this.PostToDOMAsync("init").then(o=>{this._isFilesSupported=o["isFilesSupported"];this._isSupported=o["isSupported"]}))}_OnShareCompleted(){this.Trigger(C3.Plugins.Share.Cnds.OnShareCompleted)}_OnShareFailed(){this.Trigger(C3.Plugins.Share.Cnds.OnShareFailed)}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Share.Cnds={IsSupported(){return this._isSupported},IsSharingFilesSupported(){return this._isFilesSupported},OnShareCompleted(){return true},OnShareFailed(){return true}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.Share.Acts={Share(text,title,url){if(!this._isSupported)return;this._PostToDOMMaybeSync("share",{"text":text,"title":title,"url":url,"files":this._files});C3.clearArray(this._files)},AddFile(filename,type,objectClass){if(!this._isFilesSupported)return;if(!objectClass)return;const inst=objectClass.GetFirstPicked(this._inst);if(!inst)return;const arrayBuffer=inst.GetSdkInstance().GetArrayBufferReadOnly();if(arrayBuffer.byteLength===0)return;const FileCtor=self["RealFile"]||self["File"];const file=
+new FileCtor([arrayBuffer],filename,{"type":type});this._files.push(file)},RequestRate(body,confirm,cancel,appID){this._PostToDOMMaybeSync("request-rate",{"body":body,"confirm":confirm,"cancel":cancel,"appID":appID||this._runtime.GetAppId()})},RequestStore(appID){this._PostToDOMMaybeSync("request-store",{"appID":appID||this._runtime.GetAppId()})}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Share.Exps={};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Touch=class TouchPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;const C3X=self.C3X;C3.Plugins.Touch.Type=class TouchType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}GetScriptInterfaceClass(){return self.ITouchObjectType}};let touchObjectType=null;function GetTouchSdkInstance(){return touchObjectType.GetSingleGlobalInstance().GetSdkInstance()}
+self.ITouchObjectType=class ITouchObjectType extends self.IObjectClass{constructor(objectType){super(objectType);touchObjectType=objectType;objectType.GetRuntime()._GetCommonScriptInterfaces().touch=this}requestPermission(type){C3X.RequireString(type);const touchInst=GetTouchSdkInstance();if(type==="orientation")return touchInst._RequestPermission(0);else if(type==="motion")return touchInst._RequestPermission(1);else throw new Error("invalid type");}};
+
+}
+
+{
+'use strict';const C3=self.C3;const DOM_COMPONENT_ID="touch";
+C3.Plugins.Touch.Instance=class TouchInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._touches=new Map;this._useMouseInput=false;this._isMouseDown=false;this._orientCompassHeading=0;this._orientAlpha=0;this._orientBeta=0;this._orientGamma=0;this._accX=0;this._accY=0;this._accZ=0;this._accWithGX=0;this._accWithGY=0;this._accWithGZ=0;this._triggerIndex=0;this._triggerId=0;this._triggerPermission=0;this._curTouchX=0;this._curTouchY=0;this._getTouchIndex=
+0;this._permissionPromises=[];if(properties)this._useMouseInput=properties[0];this.AddDOMMessageHandler("permission-result",e=>this._OnPermissionResult(e));const rt=this.GetRuntime().Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"pointerdown",e=>this._OnPointerDown(e.data)),C3.Disposable.From(rt,"pointermove",e=>this._OnPointerMove(e.data)),C3.Disposable.From(rt,"pointerup",e=>this._OnPointerUp(e.data,false)),C3.Disposable.From(rt,"pointercancel",e=>this._OnPointerUp(e.data,
+true)),C3.Disposable.From(rt,"deviceorientation",e=>this._OnDeviceOrientation(e.data)),C3.Disposable.From(rt,"deviceorientationabsolute",e=>this._OnDeviceOrientationAbsolute(e.data)),C3.Disposable.From(rt,"devicemotion",e=>this._OnDeviceMotion(e.data)),C3.Disposable.From(rt,"tick2",e=>this._OnTick2()))}Release(){this._touches.clear();super.Release()}_OnPointerDown(e){if(e["pointerType"]==="mouse")if(this._useMouseInput)this._isMouseDown=true;else return;const pointerId=e["pointerId"];if(this._touches.has(pointerId))return;
+const x=e["pageX"]-this._runtime.GetCanvasClientX();const y=e["pageY"]-this._runtime.GetCanvasClientY();const nowTime=performance.now();const index=this._touches.size;this._triggerIndex=index;this._triggerId=pointerId;const touchInfo=C3.New(C3.Plugins.Touch.TouchInfo);touchInfo.Init(nowTime,x,y,pointerId,index);this._touches.set(pointerId,touchInfo);this.Trigger(C3.Plugins.Touch.Cnds.OnNthTouchStart);this.Trigger(C3.Plugins.Touch.Cnds.OnTouchStart);this._curTouchX=x;this._curTouchY=y;this.Trigger(C3.Plugins.Touch.Cnds.OnTouchObject)}_OnPointerMove(e){if(e["pointerType"]===
+"mouse"&&!this._isMouseDown)return;const touchInfo=this._touches.get(e["pointerId"]);if(!touchInfo)return;const nowTime=performance.now();if(nowTime-touchInfo.GetTime()<2)return;const x=e["pageX"]-this._runtime.GetCanvasClientX();const y=e["pageY"]-this._runtime.GetCanvasClientY();touchInfo.Update(nowTime,x,y,e["width"],e["height"],e["pressure"])}_OnPointerUp(e,isCancel){if(e["pointerType"]==="mouse")if(this._isMouseDown)this._isMouseDown=false;else return;const nowTime=performance.now();const pointerId=
+e["pointerId"];const touchInfo=this._touches.get(pointerId);if(!touchInfo)return;this._triggerIndex=touchInfo.GetStartIndex();this._triggerId=touchInfo.GetId();this.Trigger(C3.Plugins.Touch.Cnds.OnNthTouchEnd);this.Trigger(C3.Plugins.Touch.Cnds.OnTouchEnd);if(!isCancel){const tap=touchInfo.ShouldTriggerTap(nowTime);if(tap==="single-tap"){this.Trigger(C3.Plugins.Touch.Cnds.OnTapGesture);this._curTouchX=touchInfo.GetX();this._curTouchY=touchInfo.GetY();this.Trigger(C3.Plugins.Touch.Cnds.OnTapGestureObject)}else if(tap===
+"double-tap"){this.Trigger(C3.Plugins.Touch.Cnds.OnDoubleTapGesture);this._curTouchX=touchInfo.GetX();this._curTouchY=touchInfo.GetY();this.Trigger(C3.Plugins.Touch.Cnds.OnDoubleTapGestureObject)}}touchInfo.Release();this._touches.delete(pointerId)}_RequestPermission(type){this._PostToDOMMaybeSync("request-permission",{"type":type});return new Promise((resolve,reject)=>{this._permissionPromises.push({type,resolve,reject})})}_OnPermissionResult(e){const isGranted=e["result"];const type=e["type"];this._triggerPermission=
+type;const toResolve=this._permissionPromises.filter(o=>o.type===type);for(const o of toResolve)o.resolve(isGranted?"granted":"denied");this._permissionPromises=this._permissionPromises.filter(o=>o.type!==type);if(isGranted){this.Trigger(C3.Plugins.Touch.Cnds.OnPermissionGranted);if(type===0)this._runtime.RequestDeviceOrientationEvent();else this._runtime.RequestDeviceMotionEvent()}else this.Trigger(C3.Plugins.Touch.Cnds.OnPermissionDenied)}_OnDeviceOrientation(e){if(typeof e["webkitCompassHeading"]===
+"number")this._orientCompassHeading=e["webkitCompassHeading"];else if(e["absolute"])this._orientCompassHeading=e["alpha"];this._orientAlpha=e["alpha"];this._orientBeta=e["beta"];this._orientGamma=e["gamma"]}_OnDeviceOrientationAbsolute(e){this._orientCompassHeading=e["alpha"]}_OnDeviceMotion(e){const acc=e["acceleration"];if(acc){this._accX=acc["x"];this._accY=acc["y"];this._accZ=acc["z"]}const withG=e["accelerationIncludingGravity"];if(withG){this._accWithGX=withG["x"];this._accWithGY=withG["y"];
+this._accWithGZ=withG["z"]}}_OnTick2(){const nowTime=performance.now();let index=0;for(const touchInfo of this._touches.values()){if(touchInfo.GetTime()<=nowTime-50)touchInfo._SetLastTime(nowTime);if(touchInfo.ShouldTriggerHold(nowTime)){this._triggerIndex=touchInfo.GetStartIndex();this._triggerId=touchInfo.GetId();this._getTouchIndex=index;this.Trigger(C3.Plugins.Touch.Cnds.OnHoldGesture);this._curTouchX=touchInfo.GetX();this._curTouchY=touchInfo.GetY();this.Trigger(C3.Plugins.Touch.Cnds.OnHoldGestureObject);
+this._getTouchIndex=0}++index}}_GetTouchByIndex(index){index=Math.floor(index);for(const touchInfo of this._touches.values()){if(index===0)return touchInfo;--index}return null}_IsClientPosOnCanvas(touchX,touchY){return touchX>=0&&touchY>=0&&touchX<this._runtime.GetCanvasCssWidth()&&touchY<this._runtime.GetCanvasCssHeight()}GetDebuggerProperties(){const prefix="plugins.touch.debugger";return[{title:prefix+".touches",properties:[...this._touches.values()].map(ti=>({name:"$"+ti.GetId(),value:ti.GetX()+
+", "+ti.GetY()}))}]}};
+
+}
+
+{
+'use strict';const C3=self.C3;const tempArr=[];
+C3.Plugins.Touch.Cnds={OnTouchStart(){return true},OnTouchEnd(){return true},IsInTouch(){return this._touches.size>0},OnTouchObject(objectClass){if(!objectClass)return false;if(!this._IsClientPosOnCanvas(this._curTouchX,this._curTouchY))return false;return this._runtime.GetCollisionEngine().TestAndSelectCanvasPointOverlap(objectClass,this._curTouchX,this._curTouchY,false)},IsTouchingObject(objectClass){if(!objectClass)return false;const sol=objectClass.GetCurrentSol();const instances=sol.GetInstances();
+for(const inst of instances){const wi=inst.GetWorldInfo();const layer=wi.GetLayer();for(const touchInfo of this._touches.values()){if(!this._IsClientPosOnCanvas(touchInfo.GetX(),touchInfo.GetY()))continue;const [px,py]=layer.CanvasCssToLayer(touchInfo.GetX(),touchInfo.GetY(),wi.GetTotalZElevation());if(wi.ContainsPoint(px,py)){tempArr.push(inst);break}}}if(tempArr.length){sol.SetArrayPicked(tempArr);objectClass.ApplySolToContainer();C3.clearArray(tempArr);return true}else return false},CompareTouchSpeed(index,
+cmp,s){const touchInfo=this._GetTouchByIndex(index);if(!touchInfo)return false;return C3.compare(touchInfo.GetSpeed(),cmp,s)},OrientationSupported(){return true},MotionSupported(){return true},CompareOrientation(orientation,cmp,a){this._runtime.RequestDeviceOrientationEvent();let v=0;if(orientation===0)v=this._orientAlpha;else if(orientation===1)v=this._orientBeta;else v=this._orientGamma;return C3.compare(v,cmp,a)},CompareAcceleration(a,cmp,x){this._runtime.RequestDeviceMotionEvent();let v=0;if(a===
+0)v=this._accWithGX;else if(a===1)v=this._accWithGY;else if(a===2)v=this._accWithGZ;else if(a===3)v=this._accX;else if(a===4)v=this._accY;else v=this._accZ;return C3.compare(v,cmp,x)},OnNthTouchStart(index){index=Math.floor(index);return index===this._triggerIndex},OnNthTouchEnd(index){index=Math.floor(index);return index===this._triggerIndex},HasNthTouch(index){index=Math.floor(index);return this._touches.size>=index+1},OnHoldGesture(){return true},OnTapGesture(){return true},OnDoubleTapGesture(){return true},
+OnHoldGestureObject(objectClass){if(!objectClass)return false;if(!this._IsClientPosOnCanvas(this._curTouchX,this._curTouchY))return false;return this._runtime.GetCollisionEngine().TestAndSelectCanvasPointOverlap(objectClass,this._curTouchX,this._curTouchY,false)},OnTapGestureObject(objectClass){if(!objectClass)return false;if(!this._IsClientPosOnCanvas(this._curTouchX,this._curTouchY))return false;return this._runtime.GetCollisionEngine().TestAndSelectCanvasPointOverlap(objectClass,this._curTouchX,
+this._curTouchY,false)},OnDoubleTapGestureObject(objectClass){if(!objectClass)return false;if(!this._IsClientPosOnCanvas(this._curTouchX,this._curTouchY))return false;return this._runtime.GetCollisionEngine().TestAndSelectCanvasPointOverlap(objectClass,this._curTouchX,this._curTouchY,false)},OnPermissionGranted(type){return this._triggerPermission===type},OnPermissionDenied(type){return this._triggerPermission===type}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.Touch.Acts={RequestPermission(type){this._RequestPermission(type)}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.Touch.Exps={TouchCount(){return this._touches.size},X(layerParam){const touchInfo=this._GetTouchByIndex(this._getTouchIndex);if(!touchInfo)return 0;return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,true)},Y(layerParam){const touchInfo=this._GetTouchByIndex(this._getTouchIndex);if(!touchInfo)return 0;return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,false)},XAt(index,layerParam){const touchInfo=this._GetTouchByIndex(index);if(!touchInfo)return 0;
+return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,true)},YAt(index,layerParam){const touchInfo=this._GetTouchByIndex(index);if(!touchInfo)return 0;return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,false)},XForID(id,layerParam){const touchInfo=this._touches.get(id);if(!touchInfo)return 0;return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,true)},YForID(id,layerParam){const touchInfo=this._touches.get(id);if(!touchInfo)return 0;
+return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,false)},AbsoluteX(){const touchInfo=this._GetTouchByIndex(0);if(touchInfo)return touchInfo.GetX();else return 0},AbsoluteY(){const touchInfo=this._GetTouchByIndex(0);if(touchInfo)return touchInfo.GetY();else return 0},AbsoluteXAt(index){const touchInfo=this._GetTouchByIndex(index);if(touchInfo)return touchInfo.GetX();else return 0},AbsoluteYAt(index){const touchInfo=this._GetTouchByIndex(index);if(touchInfo)return touchInfo.GetY();
+else return 0},AbsoluteXForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetX();else return 0},AbsoluteYForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetY();else return 0},SpeedAt(index){const touchInfo=this._GetTouchByIndex(index);if(touchInfo)return touchInfo.GetSpeed();else return 0},SpeedForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetSpeed();else return 0},AngleAt(index){const touchInfo=this._GetTouchByIndex(index);
+if(touchInfo)return C3.toDegrees(touchInfo.GetAngle());else return 0},AngleForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return C3.toDegrees(touchInfo.GetAngle());else return 0},CompassHeading(){this._runtime.RequestDeviceOrientationEvent();return this._orientCompassHeading},Alpha(){this._runtime.RequestDeviceOrientationEvent();return this._orientAlpha},Beta(){this._runtime.RequestDeviceOrientationEvent();return this._orientBeta},Gamma(){this._runtime.RequestDeviceOrientationEvent();
+return this._orientGamma},AccelerationXWithG(){this._runtime.RequestDeviceMotionEvent();return this._accWithGX},AccelerationYWithG(){this._runtime.RequestDeviceMotionEvent();return this._accWithGY},AccelerationZWithG(){this._runtime.RequestDeviceMotionEvent();return this._accWithGZ},AccelerationX(){this._runtime.RequestDeviceMotionEvent();return this._accX},AccelerationY(){this._runtime.RequestDeviceMotionEvent();return this._accY},AccelerationZ(){this._runtime.RequestDeviceMotionEvent();return this._accZ},
+TouchIndex(){return this._triggerIndex},TouchID(){return this._triggerId},WidthForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetWidth();else return 0},HeightForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetHeight();else return 0},PressureForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetPressure();else return 0}};
+
+}
+
+{
+'use strict';const C3=self.C3;const GESTURE_HOLD_THRESHOLD=15;const GESTURE_HOLD_TIMEOUT=500;const GESTURE_TAP_TIMEOUT=333;const GESTURE_DOUBLETAP_THRESHOLD=25;let lastTapX=-1E3;let lastTapY=-1E3;let lastTapTime=-1E4;
+C3.Plugins.Touch.TouchInfo=class TouchInfo extends C3.DefendedBase{constructor(){super();this._pointerId=0;this._startIndex=0;this._startTime=0;this._time=0;this._lastTime=0;this._startX=0;this._startY=0;this._x=0;this._y=0;this._lastX=0;this._lastY=0;this._width=0;this._height=0;this._pressure=0;this._hasTriggeredHold=false;this._isTooFarForHold=false}Release(){}Init(nowTime,x,y,id,index){this._pointerId=id;this._startIndex=index;this._time=nowTime;this._lastTime=nowTime;this._startTime=nowTime;
+this._startX=x;this._startY=y;this._x=x;this._y=y;this._lastX=x;this._lastY=y}Update(nowTime,x,y,width,height,pressure){this._lastTime=this._time;this._time=nowTime;this._lastX=this._x;this._lastY=this._y;this._x=x;this._y=y;this._width=width;this._height=height;this._pressure=pressure;if(!this._isTooFarForHold&&C3.distanceTo(this._startX,this._startY,this._x,this._y)>=GESTURE_HOLD_THRESHOLD)this._isTooFarForHold=true}GetId(){return this._pointerId}GetStartIndex(){return this._startIndex}GetTime(){return this._time}_SetLastTime(t){this._lastTime=
+t}GetX(){return this._x}GetY(){return this._y}GetSpeed(){const dist=C3.distanceTo(this._x,this._y,this._lastX,this._lastY);const dt=(this._time-this._lastTime)/1E3;if(dt>0)return dist/dt;else return 0}GetAngle(){return C3.angleTo(this._lastX,this._lastY,this._x,this._y)}GetWidth(){return this._width}GetHeight(){return this._height}GetPressure(){return this._pressure}ShouldTriggerHold(nowTime){if(this._hasTriggeredHold)return false;if(nowTime-this._startTime>=GESTURE_HOLD_TIMEOUT&&!this._isTooFarForHold&&
+C3.distanceTo(this._startX,this._startY,this._x,this._y)<GESTURE_HOLD_THRESHOLD){this._hasTriggeredHold=true;return true}return false}ShouldTriggerTap(nowTime){if(this._hasTriggeredHold)return"";if(nowTime-this._startTime<=GESTURE_TAP_TIMEOUT&&!this._isTooFarForHold&&C3.distanceTo(this._startX,this._startY,this._x,this._y)<GESTURE_HOLD_THRESHOLD)if(nowTime-lastTapTime<=GESTURE_TAP_TIMEOUT*2&&C3.distanceTo(lastTapX,lastTapY,this._x,this._y)<GESTURE_DOUBLETAP_THRESHOLD){lastTapX=-1E3;lastTapY=-1E3;
+lastTapTime=-1E4;return"double-tap"}else{lastTapX=this._x;lastTapY=this._y;lastTapTime=nowTime;return"single-tap"}return""}GetPositionForLayer(layout,layerNameOrNumber,getx){if(typeof layerNameOrNumber==="undefined"){const layer=layout.GetLayerByIndex(0);return layer.CanvasCssToLayer_DefaultTransform(this._x,this._y)[getx?0:1]}else{const layer=layout.GetLayer(layerNameOrNumber);if(layer)return layer.CanvasCssToLayer(this._x,this._y)[getx?0:1];else return 0}}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.XML=class XMLPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.XML.Type=class XMLType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
+
+}
+
+{
+'use strict';const C3=self.C3;const xmlDomLib=self["xmlDomLib"];const XPathResult=xmlDomLib["XPathResult"];function ResultStrToXpathResult(str){switch(str){case "number":return XPathResult["NUMBER_TYPE"];case "string":return XPathResult["STRING_TYPE"];case "unordered-node-snapshot":return XPathResult["UNORDERED_NODE_SNAPSHOT_TYPE"];case "ordered-node-snapshot":return XPathResult["ORDERED_NODE_SNAPSHOT_TYPE"];default:throw new Error("invalid result str");}}
+function XpathResultToValue(result){if(!result)return null;const type=result["resultType"];if(type===XPathResult["NUMBER_TYPE"])return result["numberValue"];else if(type===XPathResult["STRING_TYPE"])return result["stringValue"];else return 0}
+C3.Plugins.XML.Instance=class XMLInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._xmlDoc=null;this._nodeStack=[]}Release(){super.Release()}PushNodeStack(item){this._nodeStack.push(item)}PopNodeStack(){this._nodeStack.pop()}EvalXpathOne(xpath,resultType_){if(!this._xmlDoc)return null;const resultType=ResultStrToXpathResult(resultType_);const root=this._nodeStack.length?this._nodeStack.at(-1):this._xmlDoc.documentElement;try{const result=xmlDomLib["evaluate"](xpath,
+root,null,resultType,null);return XpathResultToValue(result)}catch(err){console.warn("Error evaluating XPath: ",err);return null}}EvalXpathMany(xpath,resultType_){if(!this._xmlDoc)return[];const resultType=ResultStrToXpathResult(resultType_);const root=this._nodeStack.length?this._nodeStack.at(-1):this._xmlDoc.documentElement;try{const result=xmlDomLib["evaluate"](xpath,root,null,resultType,null);if(!result)return[];const ret=[];for(let i=0,len=result["snapshotLength"];i<len;++i)ret.push(result["snapshotItem"](i));
+return ret}catch(err){console.warn("Error evaluating XPath: ",err);return[]}}};
+
+}
+
+{
+'use strict';const C3=self.C3;
+C3.Plugins.XML.Cnds={ForEach(xpath){const runtime=this._runtime;const eventSheetManager=runtime.GetEventSheetManager();const currentEvent=runtime.GetCurrentEvent();const solModifiers=currentEvent.GetSolModifiers();const eventStack=runtime.GetEventStack();const oldFrame=eventStack.GetCurrentStackFrame();const newFrame=eventStack.Push(currentEvent);const loopStack=eventSheetManager.GetLoopStack();const loop=loopStack.Push();const results=this.EvalXpathMany(xpath,"ordered-node-snapshot");runtime.SetDebuggingEnabled(false);
+for(let i=0,len=results.length;i<len;++i){const item=results[i];loop.SetIndex(i);this.PushNodeStack(item);eventSheetManager.PushCopySol(solModifiers);currentEvent.Retrigger(oldFrame,newFrame);eventSheetManager.PopSol(solModifiers);this.PopNodeStack()}runtime.SetDebuggingEnabled(true);loopStack.Pop();eventStack.Pop();return false}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.XML.Acts={Load(xmlStr){try{const domParser=new self["xmlDomLib"]["DOMParser"];this._xmlDoc=domParser["parseFromString"](xmlStr,"text/xml")}catch(err){console.warn("Error loading XML document: ",err)}}};
+
+}
+
+{
+'use strict';const C3=self.C3;C3.Plugins.XML.Exps={NumberValue(xpath){return this.EvalXpathOne(xpath,"number")},StringValue(xpath){return this.EvalXpathOne(xpath,"string")},NodeCount(xpath){const result=this.EvalXpathMany(xpath,"unordered-node-snapshot");return result.length}};
 
 }
 
@@ -3465,248 +3932,58 @@ WindowInnerWidth(){return this._runtime.GetCanvasManager().GetLastWidth()},Windo
 }
 
 {
-"use strict";
+'use strict';const C3=self.C3;C3.Plugins.advert=class MobileAdvertPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
 
-{
-	const C3 = self.C3;
-
-	C3.Plugins.CV_MobileSleep = class Mobile_Sleep_Plugin extends C3.SDKPluginBase
-	{
-		constructor(opts)
-		{
-			super(opts);
-		}
-		
-		Release()
-		{
-			super.Release();
-		}
-	};
-}
 }
 
 {
-"use strict";
+'use strict';const C3=self.C3;C3.Plugins.advert.Type=class MobileAdvertType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
 
-{
-	const C3 = self.C3;
-
-	C3.Plugins.CV_MobileSleep.Type = class Mobile_Sleep_Type extends C3.SDKTypeBase
-	{
-		constructor(objectClass)
-		{
-			super(objectClass);
-		}
-		
-		Release()
-		{
-			super.Release();
-		}
-		
-		OnCreate()
-		{	
-		}
-	};
-}
 }
 
 {
-"use strict";
+'use strict';const C3=self.C3;const BUSY="busy";const SET="set";const DOM_COMPONENT_ID="advert";function Log(str){console.log("[C3 advert]",str)}
+C3.Plugins.advert.Instance=class MobileAdvertInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this.testMode=!!properties[0];this.keyState=null;this.bannerState=null;this.interstitialState=null;this.videoState=null;this.rewardedState=null;this.rewardedInterstitialState=null;this.consentStatus=null;this.idfaStatus="not-determined";this.isInEeaOrUnknown=true;this.rewardType="";this.rewardValue=0;this.rewardInterstitialType="";this.rewardInterstitialValue=
+0;const rt=this._runtime.Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"beforeruntimestart",()=>this._OnBeforeRuntimeStart(properties)),C3.Disposable.From(rt,"layoutchange",()=>this._OnLayoutChange()))}async _OnBeforeRuntimeStart(properties){const androidID=properties[1];const iOSID=properties[2];const pubID=properties[3];const showAdFree=properties[4];const privacyPolicy=properties[5];const showConsent=properties[6];const debugLocation=properties[7];const showOnStartUp=
+properties[8];const appID=this._runtime.IsiOSCordova()?iOSID:androidID;if(appID){await this._StatusUpdate(debugLocation);this._SetPublicKey(appID,pubID,privacyPolicy,showAdFree,showConsent,debugLocation,showOnStartUp)}}_OnLayoutChange(){if(this.keyState===SET)this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationComplete)}async _StatusUpdate(debugLocation){try{debugLocation=["DISABLED","EEA","NOT_EEA"][debugLocation];const result=await this.PostToDOMAsync("StatusUpdate",[this.testMode,debugLocation]);
+const [consentStatus,idfaStatus,inEEA]=result.split("&&");this.consentStatus=consentStatus;this.idfaStatus=idfaStatus;this.isInEeaOrUnknown=inEEA!=="false"}catch(e){this.SetError("status failed to update",e)}}async _SetPublicKey(appID,pubID,privacyPolicy,showAdFree,showConsent,debugLocation,showOnStartUp){if(this.keyState!==null)return;this.keyState=BUSY;showConsent=["eu","always","never"][showConsent];debugLocation=["DISABLED","EEA","NOT_EEA"][debugLocation];try{const result=await this.PostToDOMAsync("Configure",
+[appID.trim(),pubID.trim(),privacyPolicy.trim(),showAdFree,showConsent,this.testMode,debugLocation,showOnStartUp]);const [consentStatus,idfaStatus,inEEA]=result.split("&&");this.isInEeaOrUnknown=inEEA!=="false";this.keyState=SET;this.consentStatus=consentStatus;this.idfaStatus=idfaStatus;this.SetParameters("configuration complete");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationComplete)}catch(e){this.keyState=null;this.SetError("configuration failed",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationFailed)}}PostToDOMAsync(name,
+data=[]){return super.PostToDOMAsync(name,data)}SetError(name,err){const message=typeof err==="string"?err:err.message;this.SetParameters(name,message)}SetParameters(name,err="",type="",amount=0,adType=""){Log(`Event (${name} Error (${err}) Type (${type}) Amount (${amount}))`);this.errorMessage=err||"";switch(adType){case "rewarded":{this.rewardType=type||"";this.rewardValue=amount||0;break}case "rewarded interstitial":{this.rewardInterstitialType=type||"";this.rewardInterstitialValue=amount||0;break}default:{this.rewardType=
+"";this.rewardValue=0;this.rewardInterstitialType="";this.rewardInterstitialValue=0}}}};
 
-{
-	const C3 = self.C3;
-
-	const DOM_COMPONENT_ID = "cv-mobile-sleep";
-
-	C3.Plugins.CV_MobileSleep.Instance = class Mobile_Sleep_Instance extends C3.SDKInstanceBase
-	{
-		constructor(inst, properties)
-		{
-			super(inst, DOM_COMPONENT_ID);
-			
-			this.Initialize();
-		}
-		
-		Release()
-		{
-			super.Release();
-		}
-		
-		SaveToJson()
-		{
-			return {
-			};
-		}
-		
-		LoadFromJson(o)
-		{
-		}
-
-		///////////////////////////////////////
-		// Core Methods
-		Initialize()
-		{
-			//** State variables **//
-			this._isMobile = false;
-
-			//** System References **//
-			const self = this;
-
-			//** Construct 3 Trigger **//
-			this._C3Trigger = {
-	
-				WakeLock_Success : () => {
-	
-					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockAwake);
-				},
-				WakeLock_Failure : () => {
-	
-					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockAwakeFailed);
-				},						
-	
-				DimLock_Success : () => {
-	
-					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockDimmed);
-				},		
-				DimLock_Failure : () => {
-	
-					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockDimmedFailed);
-				},
-				
-				ReleaseLock_Success : () => {
-	
-					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockRelease);
-				},		
-				ReleaseLock_Failure : () => {
-	
-					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockReleaseFailed);
-				},
-	
-				PauseRelease_Success : () => {
-	
-					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnPauseSleepRelease);
-				},		
-				PauseRelease_Failure : () => {
-	
-					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnPauseSleepReleaseFailed);
-				}				
-			};
-
-			//** Construct 3 DOM Handlers **//
-            this.AddDOMMessageHandlers([
-				["start-sdk", e => this._StartSDK(...e)],
-				["wake-lock-success", e => this._C3Trigger.WakeLock_Success(...e)],
-				["wake-lock-failure", e => this._C3Trigger.WakeLock_Failure(...e)],
-				["dim-lock-success", e => this._C3Trigger.DimLock_Success(...e)],
-				["dim-lock-failure", e => this._C3Trigger.DimLock_Failure(...e)],
-				["release-lock-success", e => this._C3Trigger.ReleaseLock_Success(...e)],
-				["release-lock-failure", e => this._C3Trigger.ReleaseLock_Failure(...e)],
-				["pause-release-success", e => this._C3Trigger.PauseRelease_Success(...e)],
-				["pause-release-failure", e => this._C3Trigger.PauseRelease_Failure(...e)]
-            ]);
-		}
-
-		///////////////////////////////////////
-		// DOM Methods
-		_StartSDK()
-		{
-			this._isMobile = true;
-		}
-
-		///////////////////////////////////////
-		// Action Methods
-		_WakeLock ()
-		{
-			if (!this.IsDependencyCleared()) { return; }
-			this.PostToDOM("wake-lock", []);
-		}
-		_DimLock ()
-		{
-			if (!this.IsDependencyCleared()) { return; }
-			this.PostToDOM("dim-lock", []);
-		}
-		_ReleaseLock ()
-		{
-			if (!this.IsDependencyCleared()) { return; }
-			this.PostToDOM("release-lock", []);
-		}
-		_PauseRelease (_bool)
-		{
-			if (!this.IsDependencyCleared()) { return; }
-			const bool = _bool === 0 ? true : false;
-			this.PostToDOM("pause-release", [bool]);
-		}
-
-		///////////////////////////////////////
-		// Getter Methods
-		IsDependencyCleared ()
-		{
-			return this._isMobile;
-		}
-
-		///////////////////////////////////////
-	};
-}
 }
 
 {
-"use strict";
+'use strict';const C3=self.C3;const SHOWN="shown";const LOADED="loaded";const SET="set";
+C3.Plugins.advert.Cnds={OnBannerReady(){return true},OnVideoReady(){return true},OnRewardedReady(){return true},OnInterstitialReady(){return true},OnRewardedInterstitialReady(){return true},OnBannerFailedToLoad(){return true},OnVideoFailedToLoad(){return true},OnRewardedFailedToLoad(){return true},OnInterstitialFailedToLoad(){return true},OnRewardedInterstitialFailedToLoad(){return true},OnBannerShown(){return true},OnVideoComplete(){return true},OnRewardedComplete(){return true},OnInterstitialComplete(){return true},
+OnRewardedInterstitialComplete(){return true},OnBannerHidden(){return true},OnVideoCancelled(){return true},OnRewardedCancelled(){return true},OnInterstitialCancelled(){return true},OnRewardedInterstitialCancelled(){return true},OnConfigurationFailed(){return true},OnConfigurationComplete(){return true},OnUserPersonalizationUpdated(){return true},IsShowingBanner(){return this.bannerState===SHOWN},IsShowingVideo(){return this.videoState===SHOWN},IsShowingRewarded(){return this.rewardedState===SHOWN},
+IsShowingInterstitial(){return this.interstitialState===SHOWN},IsShowingRewardedInterstitial(){return this.rewardedInterstitialState===SHOWN},IsInEeaOrUnknown(){return this.isInEeaOrUnknown},IsBannerLoaded(){return this.bannerState===LOADED},IsVideoLoaded(){return this.videoState===LOADED},IsRewardedLoaded(){return this.rewardedState===LOADED},IsInterstitialLoaded(){return this.interstitialState===LOADED},IsRewardedInterstitialLoaded(){return this.rewardedInterstitialState===LOADED},IsConfigured(){return this.keyState===
+SET},OnIDFARequestComplete(){return true}};
 
-{
-	const C3 = self.C3;
-
-	C3.Plugins.CV_MobileSleep.Cnds =
-	{
-		OnLockAwake 				 () { return true; },
-		OnLockAwakeFailed 			 () { return true; },
-		OnLockDimmed 				 () { return true; },
-		OnLockDimmedFailed 			 () { return true; },
-		OnLockRelease 				 () { return true; },
-		OnLockReleaseFailed 		 () { return true; },
-		OnPauseSleepRelease 		 () { return true; },
-		OnPauseSleepReleaseFailed 	 () { return true; }
-	};
-}
 }
 
 {
-"use strict";
+'use strict';const C3=self.C3;const BUSY="busy";const SHOWN="shown";const LOADED="loaded";const SET="set";const BANNER_SIZES=["portrait","landscape","standard","large","medium","full","leaderboard"];const BANNER_POSITIONS=["bottom","top"];
+C3.Plugins.advert.Acts={async CreateBanner(id,size,show,position){if(this.bannerState!=null)return;this.bannerState=BUSY;try{await this.PostToDOMAsync("CreateBannerAdvert",[id.trim(),BANNER_SIZES[size],this.testMode,BANNER_POSITIONS[position]]);this.bannerState=LOADED;this.SetParameters("banner created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnBannerReady);if(show==0)C3.Plugins.advert.Acts.ShowBanner.call(this)}catch(e){this.bannerState=null;this.SetError("failed to create banner",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnBannerFailedToLoad)}},
+async ShowBanner(){if(this.bannerState!=LOADED)return;this.bannerState=BUSY;try{await this.PostToDOMAsync("ShowBannerAdvert");this.bannerState=SHOWN;this.SetParameters("banner shown");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnBannerShown)}catch(e){this.bannerState=null;this.SetError("failed to show banner",e)}},async HideBanner(){if(this.bannerState!=SHOWN)return;this.bannerState=BUSY;try{await this.PostToDOMAsync("HideBannerAdvert");this.bannerState=null;this.SetParameters("banner hidden");
+await this.TriggerAsync(C3.Plugins.advert.Cnds.OnBannerHidden)}catch(e){this.bannerState=null;this.SetError("failed to hide banner",e)}},async CreateInterstitial(id,show){if(this.interstitialState!=null)return;this.interstitialState=BUSY;try{await this.PostToDOMAsync("CreateInterstitialAdvert",[id.trim(),this.testMode]);this.interstitialState=LOADED;this.SetParameters("interstitial created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnInterstitialReady);if(show==0)C3.Plugins.advert.Acts.ShowInterstitial.call(this)}catch(e){this.interstitialState=
+null;this.SetError("failed to create interstitial",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnInterstitialFailedToLoad)}},async ShowInterstitial(){if(this.interstitialState!=LOADED)return;this.interstitialState=SHOWN;try{await this.PostToDOMAsync("ShowInterstitialAdvert");this.interstitialState=null;this.SetParameters("interstitial completed");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnInterstitialComplete)}catch(e){this.interstitialState=null;this.SetError("interstitial cancelled",
+e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnInterstitialCancelled)}},async CreateVideo(id,show){if(this.videoState!=null||this.rewardedState!=null)return;this.videoState=BUSY;try{await this.PostToDOMAsync("CreateVideoAdvert",[id.trim(),this.testMode]);this.videoState=LOADED;this.SetParameters("video created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnVideoReady);if(show==0)C3.Plugins.advert.Acts.ShowVideo.call(this)}catch(e){this.videoState=null;this.SetError("failed to create video",
+e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnVideoFailedToLoad)}},async ShowVideo(){if(this.videoState!=LOADED)return;this.videoState=SHOWN;try{const result=await this.PostToDOMAsync("ShowVideoAdvert");const [type,value]=JSON.parse(result);this.videoState=null;this.SetParameters("video completed",null,type,value);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnVideoComplete)}catch(e){this.videoState=null;this.SetError("video cancelled",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnVideoCancelled)}},
+async CreateRewarded(id,show){if(this.rewardedState!=null||this.videoState!=null)return;this.rewardedState=BUSY;try{await this.PostToDOMAsync("CreateRewardedAdvert",[id.trim(),this.testMode]);this.rewardedState=LOADED;this.SetParameters("rewarded created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedReady);if(show==0)C3.Plugins.advert.Acts.ShowRewarded.call(this)}catch(e){this.rewardedState=null;this.SetError("failed to create rewarded",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedFailedToLoad)}},
+async ShowRewarded(){if(this.rewardedState!=LOADED)return;this.rewardedState=SHOWN;try{const result=await this.PostToDOMAsync("ShowRewardedAdvert");const [type,value]=JSON.parse(result);this.rewardedState=null;this.SetParameters("rewarded completed",null,type,value,"rewarded");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedComplete)}catch(e){this.rewardedState=null;this.SetError("rewarded cancelled",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedCancelled)}},async CreateRewardedInterstitial(id,
+show){if(this.rewardedInterstitialState!=null)return;this.rewardedInterstitialState=BUSY;try{await this.PostToDOMAsync("CreateRewardedInterstitialAdvert",[id.trim(),this.testMode]);this.rewardedInterstitialState=LOADED;this.SetParameters("rewarded interstitial created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedInterstitialReady);if(show==0)C3.Plugins.advert.Acts.ShowRewardedInterstitial.call(this)}catch(e){this.rewardedInterstitialState=null;this.SetError("failed to create rewarded interstitial",
+e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedInterstitialFailedToLoad)}},async ShowRewardedInterstitial(){if(this.rewardedInterstitialState!=LOADED)return;this.rewardedInterstitialState=SHOWN;try{const result=await this.PostToDOMAsync("ShowRewardedInterstitialAdvert");const [type,value]=JSON.parse(result);this.rewardedInterstitialState=null;this.SetParameters("rewarded interstitial completed",null,type,value,"rewarded interstitial");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedInterstitialComplete)}catch(e){this.rewardedInterstitialState=
+null;this.SetError("rewarded interstitial cancelled",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedInterstitialCancelled)}},SetPublicKey(appID,pubID,privacyPolicy,showAdFree,showConsent,debugLocation){showAdFree=[true,false][showAdFree];this._SetPublicKey(appID,pubID,privacyPolicy,showAdFree,showConsent,debugLocation)},async ShowConsentDialog(){if(this.keyState!==SET)return;this.keyState=BUSY;try{const lastIdfaStatus=this.idfaStatus;const result=await this.PostToDOMAsync("RequestConsent");
+const [consentStatus,idfaStatus,_]=result.split("&&");this.keyState=SET;this.consentStatus=consentStatus;this.idfaStatus=idfaStatus;if(lastIdfaStatus!==this.idfaStatus)this.Trigger(C3.Plugins.advert.Cnds.OnIDFARequestComplete);this.SetParameters("configuration complete");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationComplete)}catch(e){this.keyState=SET;this.SetError("configuration failed",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationFailed)}},async SetUserPersonalization(newStatus){},
+async SetMaxAdContentRating(label){if(this.keyState!==SET)return;try{const param=["G","PG","T","MA"][label];await this.PostToDOMAsync("SetMaxAdContentRating",[param])}catch(e){}},async TagForChildDirectedTreatment(option){if(this.keyState!==SET)return;try{await this.PostToDOMAsync("TagForChildDirectedTreatment",[option?1:0])}catch(e){}},async TagForUnderAgeOfConsent(option){if(this.keyState!==SET)return;try{await this.PostToDOMAsync("TagForUnderAgeOfConsent",[option?1:0])}catch(e){}},async RequestIDFA(){try{this.idfaStatus=
+await this.PostToDOMAsync("RequestIDFA")}catch(err){console.warn("Error requesting IDFA: ",err);this.idfaStatus="error"}this.Trigger(C3.Plugins.advert.Cnds.OnIDFARequestComplete)}};
 
-{
-	const C3 = self.C3;
-
-	C3.Plugins.CV_MobileSleep.Acts =
-	{
-		LockAwakeApp ()
-		{
-			this._WakeLock();
-		},
-		LockDimApp ()
-		{
-			this._DimLock();
-		},
-		ReleaseLock ()
-		{
-			this._ReleaseLock();
-		},
-		ReleasePauseSleep (bool)
-		{
-			this._PauseRelease(bool);
-		}
-	};
-}
 }
 
 {
-"use strict";
+'use strict';const C3=self.C3;C3.Plugins.advert.Exps={ErrorMessage(){return this.errorMessage||""},RewardType(){return this.rewardType||""},RewardValue(){return this.rewardValue||0},RewardInterstitialType(){return this.rewardInterstitialType||""},RewardInterstitialValue(){return this.rewardInterstitialValue||0},ConsentStatus(){return this.consentStatus||"UNKNOWN"},IDFAStatus(){return this.idfaStatus}};
 
-{
-	const C3 = self.C3;
-
-	C3.Plugins.CV_MobileSleep.Exps =
-	{
-	};
-}
 }
 
 {
@@ -5310,198 +5587,6 @@ WindowInnerWidth(){return this._runtime.GetCanvasManager().GetLastWidth()},Windo
 }
 
 {
-'use strict';const C3=self.C3;C3.Plugins.LocalStorage=class LocalStoragePlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.LocalStorage.Type=class LocalStorageType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.LocalStorage.Instance=class LocalStorageInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._currentKey="";this._lastValue="";this._keyNamesList=[];this._errorMessage="";this._pendingGets=0;this._pendingSets=0;this._storage=this._runtime._GetProjectStorage();this._debugCache=new Map;this._isLoadingDebugCache=false}Release(){super.Release()}async _TriggerStorageError(err){this._errorMessage=this._GetErrorString(err);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnError)}_GetErrorString(err){if(!err)return"unknown error";else if(typeof err===
-"string")return err;else if(typeof err.message==="string")return err.message;else if(typeof err.name==="string")return err.name;else if(typeof err.data==="string")return err.data;else return"unknown error"}GetDebuggerProperties(){if(!this._isLoadingDebugCache)this._DebugCacheStorage();return[{title:"plugins.localstorage.name",properties:[...this._debugCache.entries()].map(entry=>({name:"$"+entry[0],value:entry[1],onedit:v=>this._storage.setItem(entry[0],v)}))}]}async _DebugCacheStorage(){this._isLoadingDebugCache=
-true;try{const keyList=await this._storage.keys();keyList.sort((a,b)=>{const la=a.toLowerCase();const lb=b.toLowerCase();if(la<lb)return-1;else if(lb<la)return 1;else return 0});const values=await Promise.all(keyList.map(key=>this._storage.getItem(key)));this._debugCache.clear();for(let i=0,len=keyList.length;i<len;++i)this._debugCache.set(keyList[i],values[i])}catch(err){console.warn("[C3 debugger] Error displaying local storage: ",err)}finally{this._isLoadingDebugCache=false}}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.LocalStorage.Cnds={OnItemSet(key){return this._currentKey===key},OnAnyItemSet(){return true},OnItemGet(key){return this._currentKey===key},OnAnyItemGet(){return true},OnItemRemoved(key){return this._currentKey===key},OnAnyItemRemoved(){return true},OnCleared(){return true},OnAllKeyNamesLoaded(){return true},OnError(){return true},OnItemExists(key){return this._currentKey===key},OnItemMissing(key){return this._currentKey===key},CompareKey(cmp,key){return C3.compare(this._currentKey,cmp,
-key)},CompareValue(cmp,v){return C3.compare(this._lastValue,cmp,v)},IsProcessingSets(){return this._pendingSets>0},IsProcessingGets(){return this._pendingGets>0},OnAllSetsComplete(){return true},OnAllGetsComplete(){return true}};
-
-}
-
-{
-'use strict';const C3=self.C3;function IsExpressionType(x){return typeof x==="string"||typeof x==="number"}
-C3.Plugins.LocalStorage.Acts={async SetItem(key,value){this._pendingSets++;try{const valueSet=await this._storage.setItem(key,value);await this.ScheduleTriggers(async()=>{this._currentKey=key;this._lastValue=valueSet;await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemSet);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemSet)})}catch(err){await this._TriggerStorageError(err)}finally{this._pendingSets--;if(this._pendingSets===0)await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllSetsComplete)}},
-async SetBinaryItem(key,objectClass){if(!objectClass)return;const inst=objectClass.GetFirstPicked(this._inst);if(!inst)return;const sdkInst=inst.GetSdkInstance();if(!sdkInst)return;const buffer=sdkInst.GetArrayBufferReadOnly();this._pendingSets++;try{await this._storage.setItem(key,buffer);await this.ScheduleTriggers(async()=>{this._currentKey=key;this._lastValue="";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemSet);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemSet)})}catch(err){await this._TriggerStorageError(err)}finally{this._pendingSets--;
-if(this._pendingSets===0)await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllSetsComplete)}},async GetItem(key){this._pendingGets++;try{const value=await this._storage.getItem(key);await this.ScheduleTriggers(async()=>{this._currentKey=key;this._lastValue=IsExpressionType(value)?value:"";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemGet);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemGet)})}catch(err){await this._TriggerStorageError(err)}finally{this._pendingGets--;
-if(this._pendingGets===0)await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllGetsComplete)}},async GetBinaryItem(key,objectClass){if(!objectClass)return;const inst=objectClass.GetFirstPicked(this._inst);if(!inst)return;const sdkInst=inst.GetSdkInstance();this._pendingGets++;try{let value=await this._storage.getItem(key);value=value instanceof ArrayBuffer?value:new ArrayBuffer(0);await this.ScheduleTriggers(async()=>{this._lastValue="";this._currentKey=key;sdkInst.SetArrayBufferTransfer(value);
-await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemGet);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemGet)})}catch(err){await this._TriggerStorageError(err)}finally{this._pendingGets--;if(this._pendingGets===0)await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllGetsComplete)}},async CheckItemExists(key){try{const value=await this._storage.getItem(key);await this.ScheduleTriggers(async()=>{this._currentKey=key;if(typeof value==="undefined"||value===null){this._lastValue=
-"";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemMissing)}else{this._lastValue=IsExpressionType(value)?value:"";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemExists)}})}catch(err){await this._TriggerStorageError(err)}},async RemoveItem(key){try{await this._storage.removeItem(key);await this.ScheduleTriggers(async()=>{this._currentKey=key;this._lastValue="";await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAnyItemRemoved);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnItemRemoved)})}catch(err){await this._TriggerStorageError(err)}},
-async ClearStorage(){try{await this._storage.clear();await this.ScheduleTriggers(async()=>{this._currentKey="";this._lastValue="";C3.clearArray(this._keyNamesList);await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnCleared)})}catch(err){await this._TriggerStorageError(err)}},async GetAllKeyNames(){try{const keyList=await this._storage.keys();await this.ScheduleTriggers(async()=>{this._keyNamesList=keyList;await this.TriggerAsync(C3.Plugins.LocalStorage.Cnds.OnAllKeyNamesLoaded)})}catch(err){await this._TriggerStorageError(err)}}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.LocalStorage.Exps={ItemValue(){return this._lastValue},Key(){return this._currentKey},KeyCount(){return this._keyNamesList.length},KeyAt(i){i=Math.floor(i);if(i<0||i>=this._keyNamesList.length)return"";return this._keyNamesList[i]},ErrorMessage(){return this._errorMessage}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Audio=class AudioPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;const C3X=self.C3X;C3.Plugins.Audio.Type=class AudioType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}GetScriptInterfaceClass(){return self.IAudioObjectType}};function GetAudioDOMInterface(){if(self["C3Audio_DOMInterface"])return self["C3Audio_DOMInterface"];else throw new Error("audio scripting API cannot be used here - make sure the project is using DOM mode, not worker mode");}self.IAudioObjectType=class IAudioObjectType extends self.IObjectClass{constructor(objectType){super(objectType)}get audioContext(){return GetAudioDOMInterface().GetAudioContext()}get destinationNode(){return GetAudioDOMInterface().GetDestinationNode()}};
-
-}
-
-{
-'use strict';const C3=self.C3;const DOM_COMPONENT_ID="audio";const LATENCY_HINTS=["interactive","balanced","playback"];
-C3.Plugins.Audio.Instance=class AudioInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._nextPlayTime=0;this._triggerTag="";this._timeScaleMode=0;this._saveLoadMode=0;this._playInBackground=false;this._panningModel=1;this._distanceModel=1;this._listenerX=this._runtime.GetViewportWidth()/2;this._listenerY=this._runtime.GetViewportHeight()/2;this._listenerZ=-600;this._referenceDistance=600;this._maxDistance=1E4;this._rolloffFactor=1;this._listenerInst=
-null;this._loadListenerUid=-1;this._masterVolume=1;this._isSilent=false;this._sampleRate=0;this._effectCount=new Map;this._preloadTotal=0;this._preloadCount=0;this._remoteUrls=new Map;let latencyHint="interactive";if(properties){this._timeScaleMode=properties[0];this._saveLoadMode=properties[1];this._playInBackground=properties[2];latencyHint=LATENCY_HINTS[properties[3]];this._panningModel=properties[4];this._distanceModel=properties[5];this._listenerZ=-properties[6];this._referenceDistance=properties[7];
-this._maxDistance=properties[8];this._rolloffFactor=properties[9]}this._lastAIState=[];this._lastFxState=[];this._lastAnalysersData=[];this.AddDOMMessageHandlers([["state",e=>this._OnUpdateState(e)],["fxstate",e=>this._OnUpdateFxState(e)],["trigger",e=>this._OnTrigger(e)]]);const rt=this.GetRuntime().Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"instancedestroy",e=>this._OnInstanceDestroyed(e.instance)),C3.Disposable.From(rt,"afterload",()=>this._OnAfterLoad()),
-C3.Disposable.From(rt,"suspend",()=>this._OnSuspend()),C3.Disposable.From(rt,"resume",()=>this._OnResume()));this._runtime.AddLoadPromise(this.PostToDOMAsync("create-audio-context",{"preloadList":this._runtime.GetAssetManager().GetAudioToPreload().map(o=>({"originalUrl":o.originalUrl,"url":o.url,"type":o.type,"fileSize":o.fileSize})),"isiOSCordova":this._runtime.IsiOSCordova(),"timeScaleMode":this._timeScaleMode,"latencyHint":latencyHint,"panningModel":this._panningModel,"distanceModel":this._distanceModel,
-"refDistance":this._referenceDistance,"maxDistance":this._maxDistance,"rolloffFactor":this._rolloffFactor,"listenerPos":[this._listenerX,this._listenerY,this._listenerZ]}).then(info=>{this._sampleRate=info["sampleRate"]}));this._StartTicking()}Release(){this._listenerInst=null;super.Release()}_OnInstanceDestroyed(inst){if(this._listenerInst===inst)this._listenerInst=null}DbToLinearNoCap(x){return Math.pow(10,x/20)}DbToLinear(x){const v=this.DbToLinearNoCap(x);if(!isFinite(v))return 0;return Math.max(Math.min(v,
-1),0)}LinearToDbNoCap(x){return Math.log(x)/Math.log(10)*20}LinearToDb(x){return this.LinearToDbNoCap(Math.max(Math.min(x,1),0))}_OnSuspend(){if(this._playInBackground)return;this.PostToDOM("set-suspended",{"isSuspended":true})}_OnResume(){if(this._playInBackground)return;this.PostToDOM("set-suspended",{"isSuspended":false})}_OnUpdateState(e){const tickCount=e["tickCount"];const preservePlaceholders=this._lastAIState.filter(ai=>ai.hasOwnProperty("placeholder")&&(ai["placeholder"]>tickCount||ai["placeholder"]===
--1));this._lastAIState=e["audioInstances"];this._lastAnalysersData=e["analysers"];if(preservePlaceholders.length>0)C3.appendArray(this._lastAIState,preservePlaceholders)}_OnUpdateFxState(e){this._lastFxState=e["fxstate"]}_GetFirstAudioStateByTag(tag){for(const a of this._lastAIState)if(C3.equalsNoCase(a["tag"],tag))return a;return null}_IsTagPlaying(tag){return this._lastAIState.some(ai=>C3.equalsNoCase(tag,ai["tag"])&&ai["isPlaying"])}_MaybeMarkAsPlaying(tag,isMusic,isLooping,vol){if(this._IsTagPlaying(tag))return null;
-const state={"tag":tag,"duration":0,"volume":vol,"isPlaying":true,"playbackTime":0,"playbackRate":1,"uid":-1,"bufferOriginalUrl":"","bufferUrl":"","bufferType":"","isMusic":isMusic,"isLooping":isLooping,"isMuted":false,"resumePosition":0,"pan":null,"placeholder":-1};this._lastAIState.push(state);return state}async _OnTrigger(e){const type=e["type"];this._triggerTag=e["tag"];const aiId=e["aiid"];if(type==="ended"){for(const aiState of this._lastAIState)if(aiState["aiid"]===aiId){aiState["isPlaying"]=
-false;break}await this.TriggerAsync(C3.Plugins.Audio.Cnds.OnEnded)}else if(type==="fade-ended")await this.TriggerAsync(C3.Plugins.Audio.Cnds.OnFadeEnded)}Tick(){const o={"timeScale":this._runtime.GetTimeScale(),"gameTime":this._runtime.GetGameTimeRaw(),"instPans":this.GetInstancePans(),"tickCount":this._runtime.GetTickCountNoSave()};if(this._listenerInst){const wi=this._listenerInst.GetWorldInfo();this._listenerX=wi.GetX();this._listenerY=wi.GetY();o["listenerPos"]=[this._listenerX,this._listenerY,
-this._listenerZ]}this.PostToDOM("tick",o)}rotatePtAround(px,py,a,ox,oy){if(a===0)return[px,py];const sin_a=Math.sin(a);const cos_a=Math.cos(a);px-=ox;py-=oy;const left_sin_a=px*sin_a;const top_sin_a=py*sin_a;const left_cos_a=px*cos_a;const top_cos_a=py*cos_a;px=left_cos_a-top_sin_a;py=top_cos_a+left_sin_a;px+=ox;py+=oy;return[px,py]}GetInstancePans(){return this._lastAIState.filter(ai=>ai["uid"]!==-1).map(ai=>this._runtime.GetInstanceByUID(ai["uid"])).filter(inst=>inst).map(inst=>{const wi=inst.GetWorldInfo();
-const layerAngle=wi.GetLayer().GetAngle();const [x,y]=this.rotatePtAround(wi.GetX(),wi.GetY(),-layerAngle,this._listenerX,this._listenerY);return{"uid":inst.GetUID(),"x":x,"y":y,"angle":wi.GetAngle()-layerAngle}})}GetAnalyserData(tag,index){for(const o of this._lastAnalysersData)if(o.index===index&&C3.equalsNoCase(o.tag,tag))return o;return null}_IncrementEffectCount(tag){this._effectCount.set(tag,(this._effectCount.get(tag)||0)+1)}_ShouldSave(ai){if(ai.hasOwnProperty("placeholder"))return false;
-if(this._saveLoadMode===3)return false;else if(ai["isMusic"]&&this._saveLoadMode===1)return false;else if(!ai["isMusic"]&&this._saveLoadMode===2)return false;else return true}SaveToJson(){return{"isSilent":this._isSilent,"masterVolume":this._masterVolume,"listenerZ":this._listenerZ,"listenerUid":this._listenerInst?this._listenerInst.GetUID():-1,"remoteUrls":[...this._remoteUrls.entries()],"playing":this._lastAIState.filter(ai=>this._ShouldSave(ai)),"effects":this._lastFxState,"analysers":this._lastAnalysersData}}LoadFromJson(o){this._isSilent=
-o["isSilent"];this._masterVolume=o["masterVolume"];this._listenerZ=o["listenerZ"];this._listenerInst=null;this._loadListenerUid=o["listenerUid"];this._remoteUrls.clear();if(o["remoteUrls"])for(const [k,v]of o["remoteUrls"])this._remoteUrls.set(k,v);this._lastAIState=o["playing"];this._lastFxState=o["effects"];this._lastAnalysersData=o["analysers"]}_OnAfterLoad(){if(this._loadListenerUid!==-1){this._listenerInst=this._runtime.GetInstanceByUID(this._loadListenerUid);this._loadListenerUid=-1;if(this._listenerInst){const wi=
-this._listenerInst.GetWorldInfo();this._listenerX=wi.GetX();this._listenerY=wi.GetY()}}for(const ai of this._lastAIState){const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(ai["bufferOriginalUrl"]);if(info){ai["bufferUrl"]=info.url;ai["bufferType"]=info.type}else ai["bufferUrl"]=null}for(const fxChainData of Object.values(this._lastFxState))for(const fxData of fxChainData)if(fxData.hasOwnProperty("bufferOriginalUrl")){const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(fxData["bufferOriginalUrl"]);
-if(info){fxData["bufferUrl"]=info.url;fxData["bufferType"]=info.type}}this.PostToDOM("load-state",{"saveLoadMode":this._saveLoadMode,"timeScale":this._runtime.GetTimeScale(),"gameTime":this._runtime.GetGameTimeRaw(),"listenerPos":[this._listenerX,this._listenerY,this._listenerZ],"isSilent":this._isSilent,"masterVolume":this._masterVolume,"playing":this._lastAIState.filter(ai=>ai["bufferUrl"]!==null),"effects":this._lastFxState})}GetDebuggerProperties(){const fxProps=[];for(const [tag,fxChainData]of Object.entries(this._lastFxState))fxProps.push({name:"$"+
-tag,value:fxChainData.map(d=>d["type"]).join(", ")});const prefix="plugins.audio.debugger";return[{title:prefix+".tag-effects",properties:fxProps},{title:prefix+".currently-playing",properties:[{name:prefix+".currently-playing-count",value:this._lastAIState.length},...this._lastAIState.map((s,index)=>({name:"$#"+index,value:`${s["bufferOriginalUrl"]} ("${s["tag"]}") ${Math.round(s["playbackTime"]*10)/10} / ${Math.round(s["duration"]*10)/10}`}))]}]}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Audio.Cnds={OnEnded(tag){return C3.equalsNoCase(this._triggerTag,tag)},OnFadeEnded(tag){return C3.equalsNoCase(this._triggerTag,tag)},PreloadsComplete(){return this._preloadCount===this._preloadTotal},AdvancedAudioSupported(){return true},IsSilent(){return this._isSilent},IsAnyPlaying(){for(const ai of this._lastAIState)if(ai["isPlaying"])return true;return false},IsTagPlaying(tag){return this._IsTagPlaying(tag)}};
-
-}
-
-{
-'use strict';const C3=self.C3;const FILTER_TYPES=["lowpass","highpass","bandpass","lowshelf","highshelf","peaking","notch","allpass"];
-C3.Plugins.Audio.Acts={async Play(file,looping,vol,tag){if(this._isSilent)return;const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":file[0],"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==
-0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"]})}finally{if(state)state["placeholder"]=this._runtime.GetTickCountNoSave()}},async PlayAtPosition(file,looping,vol,x,y,angle,innerAngle,outerAngle,outerGain,tag){if(this._isSilent)return;const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),
-isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":file[0],"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"],"panning":{"x":x,"y":y,"angle":C3.toRadians(angle),"innerAngle":C3.toRadians(innerAngle),"outerAngle":C3.toRadians(outerAngle),"outerGain":this.DbToLinear(outerGain)}})}finally{if(state)state["placeholder"]=
-this._runtime.GetTickCountNoSave()}},async PlayAtObject(file,looping,vol,objectClass,innerAngle,outerAngle,outerGain,tag){if(this._isSilent)return;if(!objectClass)return;const inst=objectClass.GetFirstPicked();if(!inst||!inst.GetWorldInfo())return;const wi=inst.GetWorldInfo();const layerAngle=wi.GetLayer().GetAngle();const [x,y]=this.rotatePtAround(wi.GetX(),wi.GetY(),-layerAngle,this._listenerX,this._listenerY);const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);
-if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":file[0],"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"],"panning":{"x":x,"y":y,"angle":wi.GetAngle()-layerAngle,"innerAngle":C3.toRadians(innerAngle),
-"outerAngle":C3.toRadians(outerAngle),"outerGain":this.DbToLinear(outerGain),"uid":inst.GetUID()}})}finally{if(state)state["placeholder"]=this._runtime.GetTickCountNoSave()}},async PlayByName(folder,filename,looping,vol,tag){if(this._isSilent)return;const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),
-isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":filename,"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"]})}finally{if(state)state["placeholder"]=this._runtime.GetTickCountNoSave()}},async PlayAtPositionByName(folder,filename,looping,vol,x,y,angle,innerAngle,outerAngle,outerGain,tag){if(this._isSilent)return;
-const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":filename,"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),
-"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"],"panning":{"x":x,"y":y,"angle":C3.toRadians(angle),"innerAngle":C3.toRadians(innerAngle),"outerAngle":C3.toRadians(outerAngle),"outerGain":this.DbToLinear(outerGain)}})}finally{if(state)state["placeholder"]=this._runtime.GetTickCountNoSave()}},async PlayAtObjectByName(folder,filename,looping,vol,objectClass,innerAngle,outerAngle,outerGain,tag){if(this._isSilent)return;if(this._isSilent)return;if(!objectClass)return;const inst=
-objectClass.GetFirstPicked();if(!inst||!inst.GetWorldInfo())return;const wi=inst.GetWorldInfo();const layerAngle=wi.GetLayer().GetAngle();const [x,y]=this.rotatePtAround(wi.GetX(),wi.GetY(),-layerAngle,this._listenerX,this._listenerY);const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;const nextPlayTime=this._nextPlayTime;this._nextPlayTime=0;const state=this._MaybeMarkAsPlaying(tag.toLowerCase(),
-isMusic,looping!==0,this.DbToLinear(vol));try{await this.PostToDOMAsync("play",{"originalUrl":filename,"url":info.url,"type":info.type,"isMusic":isMusic,"tag":tag.toLowerCase(),"isLooping":looping!==0,"vol":this.DbToLinear(vol),"pos":0,"off":nextPlayTime,"trueClock":!!self["C3_GetAudioContextCurrentTime"],"panning":{"x":x,"y":y,"angle":wi.GetAngle()-layerAngle,"innerAngle":C3.toRadians(innerAngle),"outerAngle":C3.toRadians(outerAngle),"outerGain":this.DbToLinear(outerGain),"uid":inst.GetUID()}})}finally{if(state)state["placeholder"]=
-this._runtime.GetTickCountNoSave()}},SetLooping(tag,looping){this.PostToDOM("set-looping",{"tag":tag.toLowerCase(),"isLooping":looping===0})},SetMuted(tag,muted){this.PostToDOM("set-muted",{"tag":tag.toLowerCase(),"isMuted":muted===0})},SetVolume(tag,vol){this.PostToDOM("set-volume",{"tag":tag.toLowerCase(),"vol":this.DbToLinear(vol)})},FadeVolume(tag,vol,duration,ending){this.PostToDOM("fade-volume",{"tag":tag.toLowerCase(),"vol":this.DbToLinear(vol),"duration":duration,"stopOnEnd":ending===0})},
-async Preload(file){const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;this._preloadTotal++;await this.PostToDOMAsync("preload",{"originalUrl":file[0],"url":info.url,"type":info.type,"isMusic":isMusic});this._preloadCount++},async PreloadByName(folder,filename){const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;this._preloadTotal++;
-await this.PostToDOMAsync("preload",{"originalUrl":filename,"url":info.url,"type":info.type,"isMusic":isMusic});this._preloadCount++},SetPlaybackRate(tag,rate){this.PostToDOM("set-playback-rate",{"tag":tag.toLowerCase(),"rate":Math.max(rate,0)})},Stop(tag){this.PostToDOM("stop",{"tag":tag.toLowerCase()})},StopAll(){this.PostToDOM("stop-all")},SetPaused(tag,state){this.PostToDOM("set-paused",{"tag":tag.toLowerCase(),"paused":state===0})},Seek(tag,pos){this.PostToDOM("seek",{"tag":tag.toLowerCase(),
-"pos":pos})},SetSilent(s){if(s===2)s=this._isSilent?1:0;s=s===0;if(this._isSilent===s)return;this._isSilent=s;this.PostToDOM("set-silent",{"isSilent":s})},SetMasterVolume(vol){const mv=this.DbToLinear(vol);if(this._masterVolume===mv)return;this._masterVolume=mv;this.PostToDOM("set-master-volume",{"vol":mv})},AddFilterEffect(tag,type,freq,detune,q,gain,mix){tag=tag.toLowerCase();const typeStr=FILTER_TYPES[type];this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"filter","tag":tag,
-"params":[typeStr,freq,detune,q,gain,C3.clamp(mix/100,0,1)]})},AddDelayEffect(tag,delay,gain,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"delay","tag":tag,"params":[delay,this.DbToLinear(gain),C3.clamp(mix/100,0,1)]})},AddFlangerEffect(tag,delay,modulation,freq,feedback,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"flanger","tag":tag,"params":[delay/1E3,modulation/1E3,freq,feedback/100,C3.clamp(mix/
-100,0,1)]})},AddPhaserEffect(tag,freq,detune,q,mod,modfreq,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"phaser","tag":tag,"params":[freq,detune,q,mod,modfreq,C3.clamp(mix/100,0,1)]})},AddConvolutionEffect(tag,file,norm,mix){tag=tag.toLowerCase();const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"convolution","tag":tag,"bufferOriginalUrl":file[0],
-"bufferUrl":info.url,"bufferType":info.type,"params":[norm===0,C3.clamp(mix/100,0,1)]})},AddGainEffect(tag,g){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"gain","tag":tag,"params":[this.DbToLinear(g)]})},AddMuteEffect(tag){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"gain","tag":tag,"params":[0]})},AddTremoloEffect(tag,freq,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",
-{"type":"tremolo","tag":tag,"params":[freq,C3.clamp(mix/100,0,1)]})},AddRingModEffect(tag,freq,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"ringmod","tag":tag,"params":[freq,C3.clamp(mix/100,0,1)]})},AddDistortionEffect(tag,threshold,headroom,drive,makeupgain,mix){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"distortion","tag":tag,"params":[this.DbToLinearNoCap(threshold),this.DbToLinearNoCap(headroom),
-drive,this.DbToLinearNoCap(makeupgain),C3.clamp(mix/100,0,1)]})},AddCompressorEffect(tag,threshold,knee,ratio,attack,release){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"compressor","tag":tag,"params":[threshold,knee,ratio,attack/1E3,release/1E3]})},AddAnalyserEffect(tag,fftSize,smoothing){tag=tag.toLowerCase();this._IncrementEffectCount(tag);this.PostToDOM("add-effect",{"type":"analyser","tag":tag,"params":[fftSize,smoothing]})},RemoveEffects(tag){tag=
-tag.toLowerCase();this._effectCount.set(tag,0);this.PostToDOM("remove-effects",{"tag":tag});this._lastFxState={}},SetEffectParameter(tag,index,param,value,ramp,time){this.PostToDOM("set-effect-param",{"tag":tag.toLowerCase(),"index":Math.floor(index),"param":param,"value":value,"ramp":ramp,"time":time})},SetListenerObject(objectClass){if(!objectClass)return;const inst=objectClass.GetFirstPicked();if(!inst||!inst.GetWorldInfo())return;this._listenerInst=inst},SetListenerZ(z){this._listenerZ=z},ScheduleNextPlay(t){this._nextPlayTime=
-Math.max(t,0)},UnloadAudio(file){const isMusic=file[1];const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(file[0]);if(!info)return;this.PostToDOM("unload",{"url":info.url,"type":info.type,"isMusic":isMusic})},UnloadAudioByName(folder,filename){const isMusic=folder===1;const info=this._runtime.GetAssetManager().GetProjectAudioFileUrl(filename)||this._remoteUrls.get(filename.toLowerCase());if(!info)return;this.PostToDOM("unload",{"url":info.url,"type":info.type,"isMusic":isMusic})},UnloadAll(){this.PostToDOM("unload-all")},
-AddRemoteURL(url,type,name){this._remoteUrls.set(name.toLowerCase(),{url,type})}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.Audio.Exps={Duration(tag){const a=this._GetFirstAudioStateByTag(tag);return a?a["duration"]:0},PlaybackTime(tag){const a=this._GetFirstAudioStateByTag(tag);return a?a["playbackTime"]:0},PlaybackRate(tag){const a=this._GetFirstAudioStateByTag(tag);return a?a["playbackRate"]:0},Volume(tag){const a=this._GetFirstAudioStateByTag(tag);return a?this.LinearToDb(a["volume"]):0},MasterVolume(){return this.LinearToDb(this._masterVolume)},EffectCount(tag){return this._effectCount.get(tag.toLowerCase())||0},
-AnalyserFreqBinCount(tag,index){const o=this.GetAnalyserData(tag,Math.floor(index));return o?o["binCount"]:0},AnalyserFreqBinAt(tag,index,bin){const o=this.GetAnalyserData(tag,Math.floor(index));if(!o)return 0;bin=Math.floor(bin);if(bin<0||bin>=o["binCount"])return 0;return o["freqBins"][bin]},AnalyserPeakLevel(tag,index){const o=this.GetAnalyserData(tag,Math.floor(index));return o?o["peak"]:0},AnalyserRMSLevel(tag,index){const o=this.GetAnalyserData(tag,Math.floor(index));return o?o["rms"]:0},SampleRate(){return this._sampleRate},
-CurrentTime(){if(self["C3_GetAudioContextCurrentTime"])return self["C3_GetAudioContextCurrentTime"]();else return performance.now()/1E3}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.XML=class XMLPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.XML.Type=class XMLType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
-
-}
-
-{
-'use strict';const C3=self.C3;const xmlDomLib=self["xmlDomLib"];const XPathResult=xmlDomLib["XPathResult"];function ResultStrToXpathResult(str){switch(str){case "number":return XPathResult["NUMBER_TYPE"];case "string":return XPathResult["STRING_TYPE"];case "unordered-node-snapshot":return XPathResult["UNORDERED_NODE_SNAPSHOT_TYPE"];case "ordered-node-snapshot":return XPathResult["ORDERED_NODE_SNAPSHOT_TYPE"];default:throw new Error("invalid result str");}}
-function XpathResultToValue(result){if(!result)return null;const type=result["resultType"];if(type===XPathResult["NUMBER_TYPE"])return result["numberValue"];else if(type===XPathResult["STRING_TYPE"])return result["stringValue"];else return 0}
-C3.Plugins.XML.Instance=class XMLInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._xmlDoc=null;this._nodeStack=[]}Release(){super.Release()}PushNodeStack(item){this._nodeStack.push(item)}PopNodeStack(){this._nodeStack.pop()}EvalXpathOne(xpath,resultType_){if(!this._xmlDoc)return null;const resultType=ResultStrToXpathResult(resultType_);const root=this._nodeStack.length?this._nodeStack.at(-1):this._xmlDoc.documentElement;try{const result=xmlDomLib["evaluate"](xpath,
-root,null,resultType,null);return XpathResultToValue(result)}catch(err){console.warn("Error evaluating XPath: ",err);return null}}EvalXpathMany(xpath,resultType_){if(!this._xmlDoc)return[];const resultType=ResultStrToXpathResult(resultType_);const root=this._nodeStack.length?this._nodeStack.at(-1):this._xmlDoc.documentElement;try{const result=xmlDomLib["evaluate"](xpath,root,null,resultType,null);if(!result)return[];const ret=[];for(let i=0,len=result["snapshotLength"];i<len;++i)ret.push(result["snapshotItem"](i));
-return ret}catch(err){console.warn("Error evaluating XPath: ",err);return[]}}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.XML.Cnds={ForEach(xpath){const runtime=this._runtime;const eventSheetManager=runtime.GetEventSheetManager();const currentEvent=runtime.GetCurrentEvent();const solModifiers=currentEvent.GetSolModifiers();const eventStack=runtime.GetEventStack();const oldFrame=eventStack.GetCurrentStackFrame();const newFrame=eventStack.Push(currentEvent);const loopStack=eventSheetManager.GetLoopStack();const loop=loopStack.Push();const results=this.EvalXpathMany(xpath,"ordered-node-snapshot");runtime.SetDebuggingEnabled(false);
-for(let i=0,len=results.length;i<len;++i){const item=results[i];loop.SetIndex(i);this.PushNodeStack(item);eventSheetManager.PushCopySol(solModifiers);currentEvent.Retrigger(oldFrame,newFrame);eventSheetManager.PopSol(solModifiers);this.PopNodeStack()}runtime.SetDebuggingEnabled(true);loopStack.Pop();eventStack.Pop();return false}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.XML.Acts={Load(xmlStr){try{const domParser=new self["xmlDomLib"]["DOMParser"];this._xmlDoc=domParser["parseFromString"](xmlStr,"text/xml")}catch(err){console.warn("Error loading XML document: ",err)}}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.XML.Exps={NumberValue(xpath){return this.EvalXpathOne(xpath,"number")},StringValue(xpath){return this.EvalXpathOne(xpath,"string")},NodeCount(xpath){const result=this.EvalXpathMany(xpath,"unordered-node-snapshot");return result.length}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.AJAX=class AJAXPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.AJAX.Type=class AJAXType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.AJAX.Instance=class AJAXInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._lastData="";this._curTag="";this._progress=0;this._timeout=-1;this._nextRequestHeaders=new Map;this._nextReponseBinaryData=null;this._nextRequestOverrideMimeType="";this._nwjsFs=null;this._nwjsPath=null;this._nwjsAppFolder=null;this._isNWjs=this._runtime.GetExportType()==="nwjs";if(this._isNWjs){this._nwjsFs=require("fs");this._nwjsPath=require("path");const process=self["process"]||
-nw["process"];this._nwjsAppFolder=this._nwjsPath["dirname"](process["execPath"])+"\\"}}Release(){super.Release()}async _TriggerError(tag,url,err){console.error(`[Construct 3] AJAX request to '${url}' (tag '${tag}') failed: `,err);this._curTag=tag;await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnAnyError);await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnError)}async _TriggerComplete(tag){this._curTag=tag;await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnAnyComplete);await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnComplete)}async _OnProgress(tag,
-e){if(!e["lengthComputable"])return;this._progress=e["loaded"]/e["total"];this._curTag=tag;await this.TriggerAsync(C3.Plugins.AJAX.Cnds.OnProgress)}_OnError(tag,url,err){if(!this._isNWjs){this._TriggerError(tag,url,err);return}const fs=this._nwjsFs;const filePath=this._nwjsAppFolder+url;if(fs["existsSync"](filePath))fs["readFile"](filePath,{"encoding":"utf8"},(err2,data)=>{if(err2)this._TriggerError(tag,url,err2);else{this._lastData=data.replace(/\r\n/g,"\n");this._TriggerComplete(tag)}});else this._TriggerError(tag,
-url,err)}async _DoCordovaRequest(tag,file){const assetManager=this._runtime.GetAssetManager();const binaryData=this._nextReponseBinaryData;this._nextReponseBinaryData=null;try{if(binaryData){const buffer=await assetManager.CordovaFetchLocalFileAsArrayBuffer(file);binaryData.SetArrayBufferTransfer(buffer);this._lastData="";this._TriggerComplete(tag)}else{const data=await assetManager.CordovaFetchLocalFileAsText(file);this._lastData=data.replace(/\r\n/g,"\n");this._TriggerComplete(tag)}}catch(err){this._TriggerError(tag,
-file,err)}}_DoRequest(tag,url,method,data){return new Promise(resolve=>{const errorFunc=err=>{this._OnError(tag,url,err);resolve()};const binaryData=this._nextReponseBinaryData;this._nextReponseBinaryData=null;try{const request=new XMLHttpRequest;request.onreadystatechange=()=>{if(request.readyState===4){if(binaryData)this._lastData="";else this._lastData=(request.responseText||"").replace(/\r\n/g,"\n");if(request.status>=400)this._TriggerError(tag,url,request.status+request.statusText);else{const hasData=
-this._lastData.length||binaryData&&request.response instanceof ArrayBuffer;if((!this._isNWjs||hasData)&&!(!this._isNWjs&&request.status===0&&!hasData)){if(binaryData)binaryData.SetArrayBufferTransfer(request.response);this._TriggerComplete(tag)}}resolve()}};request.onerror=errorFunc;request.ontimeout=errorFunc;request.onabort=errorFunc;request["onprogress"]=e=>this._OnProgress(tag,e);request.open(method,url);if(this._timeout>=0&&typeof request["timeout"]!=="undefined")request["timeout"]=this._timeout;
-request.responseType=binaryData?"arraybuffer":"text";if(data&&!this._nextRequestHeaders.has("Content-Type"))if(typeof data!=="string")request["setRequestHeader"]("Content-Type","application/octet-stream");else request["setRequestHeader"]("Content-Type","application/x-www-form-urlencoded");for(const [header,value]of this._nextRequestHeaders)try{request["setRequestHeader"](header,value)}catch(err){console.error(`[Construct 3] AJAX: Failed to set header '${header}: ${value}': `,err)}this._nextRequestHeaders.clear();
-if(this._nextRequestOverrideMimeType){try{request["overrideMimeType"](this._nextRequestOverrideMimeType)}catch(err){console.error(`[Construct 3] AJAX: failed to override MIME type: `,err)}this._nextRequestOverrideMimeType=""}if(data)request.send(data);else request.send()}catch(err){errorFunc(err)}})}GetDebuggerProperties(){const prefix="plugins.ajax.debugger";return[{title:prefix+".title",properties:[{name:prefix+".last-data",value:this._lastData}]}]}SaveToJson(){return{"lastData":this._lastData}}LoadFromJson(o){this._lastData=
-o["lastData"];this._curTag="";this._progress=0}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.AJAX.Cnds={OnComplete(tag){return C3.equalsNoCase(this._curTag,tag)},OnAnyComplete(){return true},OnError(tag){return C3.equalsNoCase(this._curTag,tag)},OnAnyError(){return true},OnProgress(tag){return C3.equalsNoCase(this._curTag,tag)}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.AJAX.Acts={async Request(tag,url){if(this._runtime.IsCordova()&&C3.IsRelativeURL(url)&&this._runtime.GetAssetManager().IsFileProtocol())await this._DoCordovaRequest(tag,url);else if(this._runtime.IsPreview()&&C3.IsRelativeURL(url)){const localurl=this._runtime.GetAssetManager().GetLocalUrlAsBlobUrl(url.toLowerCase());await this._DoRequest(tag,localurl,"GET",null)}else await this._DoRequest(tag,url,"GET",null)},async RequestFile(tag,file){if(this._runtime.IsCordova()&&this._runtime.GetAssetManager().IsFileProtocol())await this._DoCordovaRequest(tag,
-file);else await this._DoRequest(tag,this._runtime.GetAssetManager().GetLocalUrlAsBlobUrl(file),"GET",null)},async Post(tag,url,data,method){await this._DoRequest(tag,url,method,data)},async PostBinary(tag,url,objectClass,method){if(!objectClass)return;const target=objectClass.GetFirstPicked(this._inst);if(!target)return;const sdkInst=target.GetSdkInstance();const buffer=sdkInst.GetArrayBufferReadOnly();await this._DoRequest(tag,url,method,buffer)},SetTimeout(t){this._timeout=t*1E3},SetHeader(n,v){this._nextRequestHeaders.set(n,
-v)},SetResponseBinary(objectClass){if(!objectClass)return;const inst=objectClass.GetFirstPicked(this._inst);if(!inst)return;this._nextReponseBinaryData=inst.GetSdkInstance()},OverrideMIMEType(m){this._nextRequestOverrideMimeType=m}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.AJAX.Exps={LastData(){return this._lastData},Progress(){return this._progress},Tag(){return this._curTag}};
-
-}
-
-{
 'use strict';const C3=self.C3;C3.Plugins.googleplay=class GooglePlayPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
 
 }
@@ -5550,1364 +5635,6 @@ HiScoreFormattedAt(i){const s=this.GetScoreAt(i);return s&&s["formattedScore"]?s
 this.GetAchievementMetadataAt(i);return a?a["name"]||"":""},AchievementDescriptionAt(i){const a=this.GetAchievementMetadataAt(i);return a?a["description"]||"":""},AchievementTypeAt(i){const a=this.GetAchievementMetadataAt(i);return a?(a["type"]||"").toLowerCase():""},AchievementTotalStepsAt(i){const a=this.GetAchievementMetadataAt(i);return a?a["totalSteps"]||0:0},AchievementRevealedIconURLAt(i){const a=this.GetAchievementMetadataAt(i);return a?a["revealedUrl"]||"":""},AchievementUnlockedIconURLAt(i){const a=
 this.GetAchievementMetadataAt(i);return a?a["unlockedUrl"]||"":""}};
 
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Keyboard=class KeyboardPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;const C3X=self.C3X;C3.Plugins.Keyboard.Type=class KeyboardType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}GetScriptInterfaceClass(){return self.IKeyboardObjectType}};let keyboardObjectType=null;function GetKeyboardSdkInstance(){return keyboardObjectType.GetSingleGlobalInstance().GetSdkInstance()}
-self.IKeyboardObjectType=class IKeyboardObjectType extends self.IObjectClass{constructor(objectType){super(objectType);keyboardObjectType=objectType;objectType.GetRuntime()._GetCommonScriptInterfaces().keyboard=this}isKeyDown(keyOrCode){const keyboardInst=GetKeyboardSdkInstance();if(typeof keyOrCode==="string")return keyboardInst.IsKeyDown(keyOrCode);else if(typeof keyOrCode==="number")return keyboardInst.IsKeyCodeDown(keyOrCode);else throw new TypeError("expected string or number");}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.Keyboard.Instance=class KeyboardInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._keysDownByString=new Set;this._keysDownByWhich=new Set;this._triggerWhich=0;this._triggerString="";this._triggerTypedKey="";const rt=this.GetRuntime().Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"keydown",e=>this._OnKeyDown(e.data)),C3.Disposable.From(rt,"keyup",e=>this._OnKeyUp(e.data)),C3.Disposable.From(rt,"window-blur",()=>this._OnWindowOrKeyboardBlur()),
-C3.Disposable.From(rt,"keyboard-blur",()=>this._OnWindowOrKeyboardBlur()))}Release(){super.Release()}_OnKeyDown(e){const which=e["which"];const keyString=e["code"]||which.toString();const typedKey=e["key"];if(this._keysDownByString.has(keyString))return;this._keysDownByString.add(keyString);this._keysDownByWhich.add(which);this._triggerString=keyString;this._triggerWhich=which;this._triggerTypedKey=typedKey;this.Trigger(C3.Plugins.Keyboard.Cnds.OnAnyKey);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKey);
-this.Trigger(C3.Plugins.Keyboard.Cnds.OnLeftRightKeyPressed);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyCode)}_OnKeyUp(e){const which=e["which"];const keyString=e["code"]||which.toString();const typedKey=e["key"];this._keysDownByString.delete(keyString);this._keysDownByWhich.delete(which);this._triggerString=keyString;this._triggerWhich=which;this._triggerTypedKey=typedKey;this.Trigger(C3.Plugins.Keyboard.Cnds.OnAnyKeyReleased);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyReleased);this.Trigger(C3.Plugins.Keyboard.Cnds.OnLeftRightKeyReleased);
-this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyCodeReleased)}_OnWindowOrKeyboardBlur(){for(const which of this._keysDownByWhich){this._keysDownByWhich.delete(which);this._triggerWhich=which;this.Trigger(C3.Plugins.Keyboard.Cnds.OnAnyKeyReleased);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyReleased);this.Trigger(C3.Plugins.Keyboard.Cnds.OnKeyCodeReleased)}this._keysDownByString.clear()}IsKeyDown(str){return this._keysDownByString.has(str)}IsKeyCodeDown(which){return this._keysDownByWhich.has(which)}SaveToJson(){return{"tk":this._triggerWhich,
-"tkk":this._triggerTypedKey}}LoadFromJson(o){this._triggerWhich=o["tk"];if(o.hasOwnProperty("tkk"))this._triggerTypedKey=o["tkk"]}GetDebuggerProperties(){const prefix="plugins.keyboard";return[{title:prefix+".name",properties:[{name:prefix+".debugger.last-key-code",value:this._triggerWhich},{name:prefix+".debugger.last-key-string",value:C3.Plugins.Keyboard.Exps.StringFromKeyCode(this._triggerWhich)},{name:prefix+".debugger.last-typed-key",value:this._triggerTypedKey}]}]}};
-
-}
-
-{
-'use strict';const C3=self.C3;const LEFTRIGHT_KEY_STRINGS=["ShiftLeft","ShiftRight","ControlLeft","ControlRight","AltLeft","AltRight","MetaLeft","MetaRight"];
-C3.Plugins.Keyboard.Cnds={IsKeyDown(which){return this._keysDownByWhich.has(which)},OnKey(which){return this._triggerWhich===which},OnAnyKey(){return true},OnAnyKeyReleased(){return true},OnKeyReleased(which){return this._triggerWhich===which},IsKeyCodeDown(which){which=Math.floor(which);return this._keysDownByWhich.has(which)},OnKeyCode(which){return this._triggerWhich===which},OnKeyCodeReleased(which){return this._triggerWhich===which},OnLeftRightKeyPressed(index){const keyString=LEFTRIGHT_KEY_STRINGS[index];
-return this._triggerString===keyString},OnLeftRightKeyReleased(index){const keyString=LEFTRIGHT_KEY_STRINGS[index];return this._triggerString===keyString},IsLeftRightKeyDown(index){const keyString=LEFTRIGHT_KEY_STRINGS[index];return this._keysDownByString.has(keyString)}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Keyboard.Acts={};
-
-}
-
-{
-'use strict';const C3=self.C3;
-function StringFromCharCode(kc){kc=Math.floor(kc);switch(kc){case 8:return"backspace";case 9:return"tab";case 13:return"enter";case 16:return"shift";case 17:return"control";case 18:return"alt";case 19:return"pause";case 20:return"capslock";case 27:return"esc";case 33:return"pageup";case 34:return"pagedown";case 35:return"end";case 36:return"home";case 37:return"\u2190";case 38:return"\u2191";case 39:return"\u2192";case 40:return"\u2193";case 45:return"insert";case 46:return"del";case 91:return"left window key";
-case 92:return"right window key";case 93:return"select";case 96:return"numpad 0";case 97:return"numpad 1";case 98:return"numpad 2";case 99:return"numpad 3";case 100:return"numpad 4";case 101:return"numpad 5";case 102:return"numpad 6";case 103:return"numpad 7";case 104:return"numpad 8";case 105:return"numpad 9";case 106:return"numpad *";case 107:return"numpad +";case 109:return"numpad -";case 110:return"numpad .";case 111:return"numpad /";case 112:return"F1";case 113:return"F2";case 114:return"F3";
-case 115:return"F4";case 116:return"F5";case 117:return"F6";case 118:return"F7";case 119:return"F8";case 120:return"F9";case 121:return"F10";case 122:return"F11";case 123:return"F12";case 144:return"numlock";case 145:return"scroll lock";case 186:return";";case 187:return"=";case 188:return",";case 189:return"-";case 190:return".";case 191:return"/";case 192:return"'";case 219:return"[";case 220:return"\\";case 221:return"]";case 222:return"#";case 223:return"`";default:return String.fromCharCode(kc)}}
-C3.Plugins.Keyboard.Exps={LastKeyCode(){return this._triggerWhich},StringFromKeyCode(kc){return StringFromCharCode(kc)},TypedKey(){return this._triggerTypedKey}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Touch=class TouchPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;const C3X=self.C3X;C3.Plugins.Touch.Type=class TouchType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}GetScriptInterfaceClass(){return self.ITouchObjectType}};let touchObjectType=null;function GetTouchSdkInstance(){return touchObjectType.GetSingleGlobalInstance().GetSdkInstance()}
-self.ITouchObjectType=class ITouchObjectType extends self.IObjectClass{constructor(objectType){super(objectType);touchObjectType=objectType;objectType.GetRuntime()._GetCommonScriptInterfaces().touch=this}requestPermission(type){C3X.RequireString(type);const touchInst=GetTouchSdkInstance();if(type==="orientation")return touchInst._RequestPermission(0);else if(type==="motion")return touchInst._RequestPermission(1);else throw new Error("invalid type");}};
-
-}
-
-{
-'use strict';const C3=self.C3;const DOM_COMPONENT_ID="touch";
-C3.Plugins.Touch.Instance=class TouchInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._touches=new Map;this._useMouseInput=false;this._isMouseDown=false;this._orientCompassHeading=0;this._orientAlpha=0;this._orientBeta=0;this._orientGamma=0;this._accX=0;this._accY=0;this._accZ=0;this._accWithGX=0;this._accWithGY=0;this._accWithGZ=0;this._triggerIndex=0;this._triggerId=0;this._triggerPermission=0;this._curTouchX=0;this._curTouchY=0;this._getTouchIndex=
-0;this._permissionPromises=[];if(properties)this._useMouseInput=properties[0];this.AddDOMMessageHandler("permission-result",e=>this._OnPermissionResult(e));const rt=this.GetRuntime().Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"pointerdown",e=>this._OnPointerDown(e.data)),C3.Disposable.From(rt,"pointermove",e=>this._OnPointerMove(e.data)),C3.Disposable.From(rt,"pointerup",e=>this._OnPointerUp(e.data,false)),C3.Disposable.From(rt,"pointercancel",e=>this._OnPointerUp(e.data,
-true)),C3.Disposable.From(rt,"deviceorientation",e=>this._OnDeviceOrientation(e.data)),C3.Disposable.From(rt,"deviceorientationabsolute",e=>this._OnDeviceOrientationAbsolute(e.data)),C3.Disposable.From(rt,"devicemotion",e=>this._OnDeviceMotion(e.data)),C3.Disposable.From(rt,"tick2",e=>this._OnTick2()))}Release(){this._touches.clear();super.Release()}_OnPointerDown(e){if(e["pointerType"]==="mouse")if(this._useMouseInput)this._isMouseDown=true;else return;const pointerId=e["pointerId"];if(this._touches.has(pointerId))return;
-const x=e["pageX"]-this._runtime.GetCanvasClientX();const y=e["pageY"]-this._runtime.GetCanvasClientY();const nowTime=performance.now();const index=this._touches.size;this._triggerIndex=index;this._triggerId=pointerId;const touchInfo=C3.New(C3.Plugins.Touch.TouchInfo);touchInfo.Init(nowTime,x,y,pointerId,index);this._touches.set(pointerId,touchInfo);this.Trigger(C3.Plugins.Touch.Cnds.OnNthTouchStart);this.Trigger(C3.Plugins.Touch.Cnds.OnTouchStart);this._curTouchX=x;this._curTouchY=y;this.Trigger(C3.Plugins.Touch.Cnds.OnTouchObject)}_OnPointerMove(e){if(e["pointerType"]===
-"mouse"&&!this._isMouseDown)return;const touchInfo=this._touches.get(e["pointerId"]);if(!touchInfo)return;const nowTime=performance.now();if(nowTime-touchInfo.GetTime()<2)return;const x=e["pageX"]-this._runtime.GetCanvasClientX();const y=e["pageY"]-this._runtime.GetCanvasClientY();touchInfo.Update(nowTime,x,y,e["width"],e["height"],e["pressure"])}_OnPointerUp(e,isCancel){if(e["pointerType"]==="mouse")if(this._isMouseDown)this._isMouseDown=false;else return;const nowTime=performance.now();const pointerId=
-e["pointerId"];const touchInfo=this._touches.get(pointerId);if(!touchInfo)return;this._triggerIndex=touchInfo.GetStartIndex();this._triggerId=touchInfo.GetId();this.Trigger(C3.Plugins.Touch.Cnds.OnNthTouchEnd);this.Trigger(C3.Plugins.Touch.Cnds.OnTouchEnd);if(!isCancel){const tap=touchInfo.ShouldTriggerTap(nowTime);if(tap==="single-tap"){this.Trigger(C3.Plugins.Touch.Cnds.OnTapGesture);this._curTouchX=touchInfo.GetX();this._curTouchY=touchInfo.GetY();this.Trigger(C3.Plugins.Touch.Cnds.OnTapGestureObject)}else if(tap===
-"double-tap"){this.Trigger(C3.Plugins.Touch.Cnds.OnDoubleTapGesture);this._curTouchX=touchInfo.GetX();this._curTouchY=touchInfo.GetY();this.Trigger(C3.Plugins.Touch.Cnds.OnDoubleTapGestureObject)}}touchInfo.Release();this._touches.delete(pointerId)}_RequestPermission(type){this._PostToDOMMaybeSync("request-permission",{"type":type});return new Promise((resolve,reject)=>{this._permissionPromises.push({type,resolve,reject})})}_OnPermissionResult(e){const isGranted=e["result"];const type=e["type"];this._triggerPermission=
-type;const toResolve=this._permissionPromises.filter(o=>o.type===type);for(const o of toResolve)o.resolve(isGranted?"granted":"denied");this._permissionPromises=this._permissionPromises.filter(o=>o.type!==type);if(isGranted){this.Trigger(C3.Plugins.Touch.Cnds.OnPermissionGranted);if(type===0)this._runtime.RequestDeviceOrientationEvent();else this._runtime.RequestDeviceMotionEvent()}else this.Trigger(C3.Plugins.Touch.Cnds.OnPermissionDenied)}_OnDeviceOrientation(e){if(typeof e["webkitCompassHeading"]===
-"number")this._orientCompassHeading=e["webkitCompassHeading"];else if(e["absolute"])this._orientCompassHeading=e["alpha"];this._orientAlpha=e["alpha"];this._orientBeta=e["beta"];this._orientGamma=e["gamma"]}_OnDeviceOrientationAbsolute(e){this._orientCompassHeading=e["alpha"]}_OnDeviceMotion(e){const acc=e["acceleration"];if(acc){this._accX=acc["x"];this._accY=acc["y"];this._accZ=acc["z"]}const withG=e["accelerationIncludingGravity"];if(withG){this._accWithGX=withG["x"];this._accWithGY=withG["y"];
-this._accWithGZ=withG["z"]}}_OnTick2(){const nowTime=performance.now();let index=0;for(const touchInfo of this._touches.values()){if(touchInfo.GetTime()<=nowTime-50)touchInfo._SetLastTime(nowTime);if(touchInfo.ShouldTriggerHold(nowTime)){this._triggerIndex=touchInfo.GetStartIndex();this._triggerId=touchInfo.GetId();this._getTouchIndex=index;this.Trigger(C3.Plugins.Touch.Cnds.OnHoldGesture);this._curTouchX=touchInfo.GetX();this._curTouchY=touchInfo.GetY();this.Trigger(C3.Plugins.Touch.Cnds.OnHoldGestureObject);
-this._getTouchIndex=0}++index}}_GetTouchByIndex(index){index=Math.floor(index);for(const touchInfo of this._touches.values()){if(index===0)return touchInfo;--index}return null}_IsClientPosOnCanvas(touchX,touchY){return touchX>=0&&touchY>=0&&touchX<this._runtime.GetCanvasCssWidth()&&touchY<this._runtime.GetCanvasCssHeight()}GetDebuggerProperties(){const prefix="plugins.touch.debugger";return[{title:prefix+".touches",properties:[...this._touches.values()].map(ti=>({name:"$"+ti.GetId(),value:ti.GetX()+
-", "+ti.GetY()}))}]}};
-
-}
-
-{
-'use strict';const C3=self.C3;const tempArr=[];
-C3.Plugins.Touch.Cnds={OnTouchStart(){return true},OnTouchEnd(){return true},IsInTouch(){return this._touches.size>0},OnTouchObject(objectClass){if(!objectClass)return false;if(!this._IsClientPosOnCanvas(this._curTouchX,this._curTouchY))return false;return this._runtime.GetCollisionEngine().TestAndSelectCanvasPointOverlap(objectClass,this._curTouchX,this._curTouchY,false)},IsTouchingObject(objectClass){if(!objectClass)return false;const sol=objectClass.GetCurrentSol();const instances=sol.GetInstances();
-for(const inst of instances){const wi=inst.GetWorldInfo();const layer=wi.GetLayer();for(const touchInfo of this._touches.values()){if(!this._IsClientPosOnCanvas(touchInfo.GetX(),touchInfo.GetY()))continue;const [px,py]=layer.CanvasCssToLayer(touchInfo.GetX(),touchInfo.GetY(),wi.GetTotalZElevation());if(wi.ContainsPoint(px,py)){tempArr.push(inst);break}}}if(tempArr.length){sol.SetArrayPicked(tempArr);objectClass.ApplySolToContainer();C3.clearArray(tempArr);return true}else return false},CompareTouchSpeed(index,
-cmp,s){const touchInfo=this._GetTouchByIndex(index);if(!touchInfo)return false;return C3.compare(touchInfo.GetSpeed(),cmp,s)},OrientationSupported(){return true},MotionSupported(){return true},CompareOrientation(orientation,cmp,a){this._runtime.RequestDeviceOrientationEvent();let v=0;if(orientation===0)v=this._orientAlpha;else if(orientation===1)v=this._orientBeta;else v=this._orientGamma;return C3.compare(v,cmp,a)},CompareAcceleration(a,cmp,x){this._runtime.RequestDeviceMotionEvent();let v=0;if(a===
-0)v=this._accWithGX;else if(a===1)v=this._accWithGY;else if(a===2)v=this._accWithGZ;else if(a===3)v=this._accX;else if(a===4)v=this._accY;else v=this._accZ;return C3.compare(v,cmp,x)},OnNthTouchStart(index){index=Math.floor(index);return index===this._triggerIndex},OnNthTouchEnd(index){index=Math.floor(index);return index===this._triggerIndex},HasNthTouch(index){index=Math.floor(index);return this._touches.size>=index+1},OnHoldGesture(){return true},OnTapGesture(){return true},OnDoubleTapGesture(){return true},
-OnHoldGestureObject(objectClass){if(!objectClass)return false;if(!this._IsClientPosOnCanvas(this._curTouchX,this._curTouchY))return false;return this._runtime.GetCollisionEngine().TestAndSelectCanvasPointOverlap(objectClass,this._curTouchX,this._curTouchY,false)},OnTapGestureObject(objectClass){if(!objectClass)return false;if(!this._IsClientPosOnCanvas(this._curTouchX,this._curTouchY))return false;return this._runtime.GetCollisionEngine().TestAndSelectCanvasPointOverlap(objectClass,this._curTouchX,
-this._curTouchY,false)},OnDoubleTapGestureObject(objectClass){if(!objectClass)return false;if(!this._IsClientPosOnCanvas(this._curTouchX,this._curTouchY))return false;return this._runtime.GetCollisionEngine().TestAndSelectCanvasPointOverlap(objectClass,this._curTouchX,this._curTouchY,false)},OnPermissionGranted(type){return this._triggerPermission===type},OnPermissionDenied(type){return this._triggerPermission===type}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Touch.Acts={RequestPermission(type){this._RequestPermission(type)}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.Touch.Exps={TouchCount(){return this._touches.size},X(layerParam){const touchInfo=this._GetTouchByIndex(this._getTouchIndex);if(!touchInfo)return 0;return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,true)},Y(layerParam){const touchInfo=this._GetTouchByIndex(this._getTouchIndex);if(!touchInfo)return 0;return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,false)},XAt(index,layerParam){const touchInfo=this._GetTouchByIndex(index);if(!touchInfo)return 0;
-return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,true)},YAt(index,layerParam){const touchInfo=this._GetTouchByIndex(index);if(!touchInfo)return 0;return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,false)},XForID(id,layerParam){const touchInfo=this._touches.get(id);if(!touchInfo)return 0;return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,true)},YForID(id,layerParam){const touchInfo=this._touches.get(id);if(!touchInfo)return 0;
-return touchInfo.GetPositionForLayer(this._runtime.GetCurrentLayout(),layerParam,false)},AbsoluteX(){const touchInfo=this._GetTouchByIndex(0);if(touchInfo)return touchInfo.GetX();else return 0},AbsoluteY(){const touchInfo=this._GetTouchByIndex(0);if(touchInfo)return touchInfo.GetY();else return 0},AbsoluteXAt(index){const touchInfo=this._GetTouchByIndex(index);if(touchInfo)return touchInfo.GetX();else return 0},AbsoluteYAt(index){const touchInfo=this._GetTouchByIndex(index);if(touchInfo)return touchInfo.GetY();
-else return 0},AbsoluteXForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetX();else return 0},AbsoluteYForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetY();else return 0},SpeedAt(index){const touchInfo=this._GetTouchByIndex(index);if(touchInfo)return touchInfo.GetSpeed();else return 0},SpeedForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetSpeed();else return 0},AngleAt(index){const touchInfo=this._GetTouchByIndex(index);
-if(touchInfo)return C3.toDegrees(touchInfo.GetAngle());else return 0},AngleForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return C3.toDegrees(touchInfo.GetAngle());else return 0},CompassHeading(){this._runtime.RequestDeviceOrientationEvent();return this._orientCompassHeading},Alpha(){this._runtime.RequestDeviceOrientationEvent();return this._orientAlpha},Beta(){this._runtime.RequestDeviceOrientationEvent();return this._orientBeta},Gamma(){this._runtime.RequestDeviceOrientationEvent();
-return this._orientGamma},AccelerationXWithG(){this._runtime.RequestDeviceMotionEvent();return this._accWithGX},AccelerationYWithG(){this._runtime.RequestDeviceMotionEvent();return this._accWithGY},AccelerationZWithG(){this._runtime.RequestDeviceMotionEvent();return this._accWithGZ},AccelerationX(){this._runtime.RequestDeviceMotionEvent();return this._accX},AccelerationY(){this._runtime.RequestDeviceMotionEvent();return this._accY},AccelerationZ(){this._runtime.RequestDeviceMotionEvent();return this._accZ},
-TouchIndex(){return this._triggerIndex},TouchID(){return this._triggerId},WidthForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetWidth();else return 0},HeightForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetHeight();else return 0},PressureForID(id){const touchInfo=this._touches.get(id);if(touchInfo)return touchInfo.GetPressure();else return 0}};
-
-}
-
-{
-'use strict';const C3=self.C3;const GESTURE_HOLD_THRESHOLD=15;const GESTURE_HOLD_TIMEOUT=500;const GESTURE_TAP_TIMEOUT=333;const GESTURE_DOUBLETAP_THRESHOLD=25;let lastTapX=-1E3;let lastTapY=-1E3;let lastTapTime=-1E4;
-C3.Plugins.Touch.TouchInfo=class TouchInfo extends C3.DefendedBase{constructor(){super();this._pointerId=0;this._startIndex=0;this._startTime=0;this._time=0;this._lastTime=0;this._startX=0;this._startY=0;this._x=0;this._y=0;this._lastX=0;this._lastY=0;this._width=0;this._height=0;this._pressure=0;this._hasTriggeredHold=false;this._isTooFarForHold=false}Release(){}Init(nowTime,x,y,id,index){this._pointerId=id;this._startIndex=index;this._time=nowTime;this._lastTime=nowTime;this._startTime=nowTime;
-this._startX=x;this._startY=y;this._x=x;this._y=y;this._lastX=x;this._lastY=y}Update(nowTime,x,y,width,height,pressure){this._lastTime=this._time;this._time=nowTime;this._lastX=this._x;this._lastY=this._y;this._x=x;this._y=y;this._width=width;this._height=height;this._pressure=pressure;if(!this._isTooFarForHold&&C3.distanceTo(this._startX,this._startY,this._x,this._y)>=GESTURE_HOLD_THRESHOLD)this._isTooFarForHold=true}GetId(){return this._pointerId}GetStartIndex(){return this._startIndex}GetTime(){return this._time}_SetLastTime(t){this._lastTime=
-t}GetX(){return this._x}GetY(){return this._y}GetSpeed(){const dist=C3.distanceTo(this._x,this._y,this._lastX,this._lastY);const dt=(this._time-this._lastTime)/1E3;if(dt>0)return dist/dt;else return 0}GetAngle(){return C3.angleTo(this._lastX,this._lastY,this._x,this._y)}GetWidth(){return this._width}GetHeight(){return this._height}GetPressure(){return this._pressure}ShouldTriggerHold(nowTime){if(this._hasTriggeredHold)return false;if(nowTime-this._startTime>=GESTURE_HOLD_TIMEOUT&&!this._isTooFarForHold&&
-C3.distanceTo(this._startX,this._startY,this._x,this._y)<GESTURE_HOLD_THRESHOLD){this._hasTriggeredHold=true;return true}return false}ShouldTriggerTap(nowTime){if(this._hasTriggeredHold)return"";if(nowTime-this._startTime<=GESTURE_TAP_TIMEOUT&&!this._isTooFarForHold&&C3.distanceTo(this._startX,this._startY,this._x,this._y)<GESTURE_HOLD_THRESHOLD)if(nowTime-lastTapTime<=GESTURE_TAP_TIMEOUT*2&&C3.distanceTo(lastTapX,lastTapY,this._x,this._y)<GESTURE_DOUBLETAP_THRESHOLD){lastTapX=-1E3;lastTapY=-1E3;
-lastTapTime=-1E4;return"double-tap"}else{lastTapX=this._x;lastTapY=this._y;lastTapTime=nowTime;return"single-tap"}return""}GetPositionForLayer(layout,layerNameOrNumber,getx){if(typeof layerNameOrNumber==="undefined"){const layer=layout.GetLayerByIndex(0);return layer.CanvasCssToLayer_DefaultTransform(this._x,this._y)[getx?0:1]}else{const layer=layout.GetLayer(layerNameOrNumber);if(layer)return layer.CanvasCssToLayer(this._x,this._y)[getx?0:1];else return 0}}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Share=class SharePlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Share.Type=class ShareType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
-
-}
-
-{
-'use strict';const C3=self.C3;const DOM_COMPONENT_ID="share";
-C3.Plugins.Share.Instance=class ShareInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._isSupported=false;this._isFilesSupported=false;this._files=[];this.AddDOMMessageHandlers([["share-completed",()=>this._OnShareCompleted()],["share-failed",()=>this._OnShareFailed()]]);this._runtime.AddLoadPromise(this.PostToDOMAsync("init").then(o=>{this._isFilesSupported=o["isFilesSupported"];this._isSupported=o["isSupported"]}))}_OnShareCompleted(){this.Trigger(C3.Plugins.Share.Cnds.OnShareCompleted)}_OnShareFailed(){this.Trigger(C3.Plugins.Share.Cnds.OnShareFailed)}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Share.Cnds={IsSupported(){return this._isSupported},IsSharingFilesSupported(){return this._isFilesSupported},OnShareCompleted(){return true},OnShareFailed(){return true}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.Share.Acts={Share(text,title,url){if(!this._isSupported)return;this._PostToDOMMaybeSync("share",{"text":text,"title":title,"url":url,"files":this._files});C3.clearArray(this._files)},AddFile(filename,type,objectClass){if(!this._isFilesSupported)return;if(!objectClass)return;const inst=objectClass.GetFirstPicked(this._inst);if(!inst)return;const arrayBuffer=inst.GetSdkInstance().GetArrayBufferReadOnly();if(arrayBuffer.byteLength===0)return;const FileCtor=self["RealFile"]||self["File"];const file=
-new FileCtor([arrayBuffer],filename,{"type":type});this._files.push(file)},RequestRate(body,confirm,cancel,appID){this._PostToDOMMaybeSync("request-rate",{"body":body,"confirm":confirm,"cancel":cancel,"appID":appID||this._runtime.GetAppId()})},RequestStore(appID){this._PostToDOMMaybeSync("request-store",{"appID":appID||this._runtime.GetAppId()})}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Share.Exps={};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.BinaryData=class BinaryDataPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.BinaryData.Type=class BinaryDataType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
-
-}
-
-{
-'use strict';const C3=self.C3;const C3X=self.C3X;const IInstance=self.IInstance;const BASE64_DICTIONARY="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-C3.Plugins.BinaryData.Instance=class BinaryDataInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst);this._buffer=new ArrayBuffer(0);this._view=null;this._altView=null;this._littleEndian=properties[0]===0;this._blobURL=null;this._setters=[[1,(o,v)=>this._view.setInt8(o,v)],[1,(o,v)=>this._view.setUint8(o,v)],[2,(o,v)=>this._view.setInt16(o,v,this._littleEndian)],[2,(o,v)=>this._view.setUint16(o,v,this._littleEndian)],[4,(o,v)=>this._view.setInt32(o,v,this._littleEndian)],[4,
-(o,v)=>this._view.setUint32(o,v,this._littleEndian)],[4,(o,v)=>this._view.setFloat32(o,v,this._littleEndian)],[8,(o,v)=>this._view.setFloat64(o,v,this._littleEndian)]];this._getters=[[1,o=>this._view.getInt8(o)],[1,o=>this._view.getUint8(o)],[2,o=>this._view.getInt16(o,this._littleEndian)],[2,o=>this._view.getUint16(o,this._littleEndian)],[4,o=>this._view.getInt32(o,this._littleEndian)],[4,o=>this._view.getUint32(o,this._littleEndian)],[4,o=>this._view.getFloat32(o,this._littleEndian)],[8,o=>this._view.getFloat64(o,
-this._littleEndian)]];this._UpdateViews()}_CheckValidIndex(index,size){return index>=0&&index+size<=this.ByteLength()}_ClampToLength(value){const l=this.ByteLength();if(value<0)return 0;if(value>=l)return l;return value}_ClampToValidIndex(value){const l=this.ByteLength();if(value<0)return 0;if(value>l)return l;return value}ByteLength(){return this._buffer.byteLength}_UpdateViews(){const B=this._buffer;this._view=new DataView(B);this._altView=new Uint8Array(B)}_GetBinaryDataSdkInstance(objectClass){if(!objectClass)return null;
-const target=objectClass.GetFirstPicked(this._inst);if(!target)return null;return target.GetSdkInstance()}_Get(type,offset){const getter=this._getters[type][1];const size=this._getters[type][0];if(this._CheckValidIndex(offset,size))return getter(offset);return 0}_Set(type,offset,value){const setter=this._setters[type][1];const size=this._setters[type][0];if(this._CheckValidIndex(offset,size))setter(offset,value)}_ResizeBuffer(source,length){if(!(source instanceof ArrayBuffer))throw new TypeError("Source must be an instance of ArrayBuffer");
-if(length<=source.byteLength)return source.slice(0,length);const sourceView=new Uint8Array(source);const destView=new Uint8Array(new ArrayBuffer(length));destView.set(sourceView);return destView.buffer}SetArrayBufferCopy(viewOrBuffer){if(C3.WeakIsInstanceOf(viewOrBuffer,ArrayBuffer))this._buffer=viewOrBuffer.slice(0);else{C3.WeakRequireTypedArray(viewOrBuffer);const buffer=viewOrBuffer.buffer;const byteLength=viewOrBuffer.byteLength;const byteOffset=viewOrBuffer.byteOffset;this._buffer=buffer.slice(byteOffset,
-byteOffset+byteLength)}this._UpdateViews()}SetArrayBufferTransfer(buffer){C3.WeakRequireInstanceOf(buffer,ArrayBuffer);this._buffer=buffer;this._UpdateViews()}GetArrayBufferCopy(){return this._buffer.slice(0)}GetArrayBufferReadOnly(){return this._buffer}TypedArrayToString(typedArray,utfLabel){let decoder=new TextDecoder(utfLabel||"utf-8");return decoder.decode(typedArray)}StringToArrayBuffer(str){let encoder=new TextEncoder("utf-8");return encoder.encode(str).buffer}Uint8ArrayToBase64String(uint8array){const read=
-i=>i<length?uint8array[i]:(padding++,0);const length=uint8array.length;const mask=63;const output=[];let padding=0;let i=0;while(i<length){const chunk=(read(i++)<<16)+(read(i++)<<8)+read(i++);output.push(BASE64_DICTIONARY[chunk>>>18&mask],BASE64_DICTIONARY[chunk>>>12&mask],BASE64_DICTIONARY[chunk>>>6&mask],BASE64_DICTIONARY[chunk&mask])}i=output.length-padding;while(i<output.length)output[i++]="=";return output.join("")}Base64StringToUint8Array(str){const paddingIndex=str.indexOf("=");const originalLength=
-str.length;const alignedLength=originalLength>>2<<2;const alignmentOffset=originalLength-alignedLength;const padding=paddingIndex>-1?originalLength-paddingIndex:0;if(padding>2)throw new Error("Invalid padding");const isLegacy=alignedLength===paddingIndex;let unpaddedLength=originalLength;if(isLegacy)unpaddedLength=alignedLength-padding;else if(alignmentOffset===0&&paddingIndex>-1)unpaddedLength-=padding;const outputLength=unpaddedLength*3>>2;const output=new Uint8Array(outputLength);let readIndex=
-0;let writeIndex=0;const read=()=>{if(readIndex>=unpaddedLength)return 0;const n=str.charCodeAt(readIndex++);if(n>64&&n<91)return n-65;if(n>96&&n<123)return n-71;if(n>47&&n<58)return n+4;if(n===43)return 62;if(n===47)return 63;if(n===61)return 0;throw new Error(`Invalid character at column ${readIndex-1}`);};const push=v=>writeIndex<outputLength&&(output[writeIndex++]=v);while(writeIndex<outputLength){const chunk=(read()<<18)+(read()<<12)+(read()<<6)+read();push(chunk>>>16&255);push(chunk>>>8&255);
-push(chunk&255)}return output}GetScriptInterfaceClass(){return self.IBinaryDataInstance}};const map=new WeakMap;
-self.IBinaryDataInstance=class IBinaryDataInstance extends IInstance{constructor(){super();map.set(this,IInstance._GetInitInst().GetSdkInstance())}setArrayBufferCopy(viewOrBuffer){if(!(viewOrBuffer instanceof ArrayBuffer)&&!C3.IsTypedArray(viewOrBuffer))throw new TypeError("invalid parameter");map.get(this).SetArrayBufferCopy(viewOrBuffer)}setArrayBufferTransfer(arrayBuffer){if(!(arrayBuffer instanceof ArrayBuffer))throw new TypeError("invalid parameter");map.get(this).SetArrayBufferTransfer(arrayBuffer)}getArrayBufferCopy(){return map.get(this).GetArrayBufferCopy()}getArrayBufferReadOnly(){return map.get(this).GetArrayBufferReadOnly()}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.BinaryData.Cnds={CompareLength(operator,length){return C3.compare(this.ByteLength(),operator,length)},CompareValue(type,offset,operator,value){return C3.compare(this._Get(type,offset),operator,value)}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.BinaryData.Acts={SetEndian(b){this._littleEndian=b===0},SetLength(byteLength){this._buffer=this._ResizeBuffer(this._buffer,byteLength);this._UpdateViews()},SetFromBase64(str){try{const view=this.Base64StringToUint8Array(str);this.SetArrayBufferTransfer(view.buffer)}catch(err){console.warn("[BinaryData] Invalid base64 string: ",err)}},SetFromBinaryData(objectClass){const otherSdkInst=this._GetBinaryDataSdkInstance(objectClass);if(otherSdkInst===null)return;const buffer=otherSdkInst.GetArrayBufferCopy();
-this.SetArrayBufferTransfer(buffer)},SetFromText(str){const arrayBuffer=this.StringToArrayBuffer(str);this.SetArrayBufferTransfer(arrayBuffer)},Fill(type,value,offset,length){const setter=this._setters[type][1];const size=this._setters[type][0];const start=this._ClampToLength(offset);let end=0;if(length===-1)end==this.ByteLength();else end=this._ClampToLength(start+length);if(end<=start)return;const correctedLength=Math.floor((end-start)/size)*size;end=start+correctedLength;for(let i=start;i<end;i+=
-size)setter(i,value)},Copy(objectClass,start,length,target){const otherSdkInst=this._GetBinaryDataSdkInstance(objectClass);if(otherSdkInst===null)return;target=this._ClampToValidIndex(target);start=otherSdkInst._ClampToLength(start);let end;if(length===-1)end=otherSdkInst.ByteLength();else end=otherSdkInst._ClampToLength(start+length);if(end<=start)return;const selfSize=this.ByteLength();if(target+end-start>selfSize){const capacity=selfSize-target;end=start+capacity;if(end<=start)return}if(otherSdkInst===
-this)this._altView.copyWithin(target,start,end);else{const sourceBuffer=otherSdkInst.GetArrayBufferReadOnly();const slicedView=new Uint8Array(sourceBuffer,start,end-start);this._altView.set(slicedView,target)}},SetValue(type,value,offset){this._Set(type,offset,value)}};
-
-}
-
-{
-'use strict';const C3=self.C3;const T={int8:0,uint8:1,int16:2,uint16:3,int32:4,uint32:5,float32:6,float64:7};
-C3.Plugins.BinaryData.Exps={GetURL(){if(this._blobURL!==null)URL.revokeObjectURL(this._blobURL);const blob=new Blob([this._altView],{type:""});const url=URL.createObjectURL(blob);this._blobURL=url;return url},GetBase64(){return this.Uint8ArrayToBase64String(this._altView)},ByteLength(){return this.ByteLength()},GetInt8(offset){return this._Get(T.int8,offset)},GetUint8(offset){return this._Get(T.uint8,offset)},GetInt16(offset){return this._Get(T.int16,offset)},GetUint16(offset){return this._Get(T.uint16,
-offset)},GetInt32(offset){return this._Get(T.int32,offset)},GetUint32(offset){return this._Get(T.uint32,offset)},GetFloat32(offset){return this._Get(T.float32,offset)},GetFloat64(offset){return this._Get(T.float64,offset)},GetText(offset,length){let result="";if(this._CheckValidIndex(offset,length)){const view=this._altView.subarray(offset,offset+length);try{result=this.TypedArrayToString(view)}catch(e){console.warn("Failed to decode text",e)}}return result}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Date=class DatePlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Date.Type=class DateType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Date.Instance=class DateInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst)}};
-
-}
-
-{
-'use strict';const C3=self.C3;const getters=[];getters[0]=[ts=>C3.Plugins.Date.Exps.GetYear(ts),ts=>C3.Plugins.Date.Exps.GetMonth(ts),ts=>C3.Plugins.Date.Exps.GetDate(ts),ts=>C3.Plugins.Date.Exps.GetDay(ts),ts=>C3.Plugins.Date.Exps.GetHours(ts),ts=>C3.Plugins.Date.Exps.GetMinutes(ts),ts=>C3.Plugins.Date.Exps.GetSeconds(ts),ts=>C3.Plugins.Date.Exps.GetMilliseconds(ts)];
-getters[1]=[ts=>C3.Plugins.Date.Exps.GetUTCYear(ts),ts=>C3.Plugins.Date.Exps.GetUTCMonth(ts),ts=>C3.Plugins.Date.Exps.GetUTCDate(ts),ts=>C3.Plugins.Date.Exps.GetUTCDay(ts),ts=>C3.Plugins.Date.Exps.GetUTCHours(ts),ts=>C3.Plugins.Date.Exps.GetUTCMinutes(ts),ts=>C3.Plugins.Date.Exps.GetUTCSeconds(ts),ts=>C3.Plugins.Date.Exps.GetUTCMilliseconds(ts)];const parse=dateString=>C3.Plugins.Date.Exps.Parse(dateString);
-C3.Plugins.Date.Cnds={CompareTimeStamps(first,cmp,second){return C3.compare(first,cmp,second)},CompareDateStrings(first,cmp,second){return C3.compare(parse(first),cmp,parse(second))},CompareTimestampParts(first,cmp,second,part){return C3.compare(getters[1][part](first),cmp,getters[1][part](second))},CompareDateStringParts(first,cmp,second,part,mode){return C3.compare(getters[mode][part](parse(first)),cmp,getters[mode][part](parse(second)))}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.Date.Acts={};
-
-}
-
-{
-'use strict';const C3=self.C3;const getters=new Map;getters.set("local",new Map([["year",ts=>(new Date(ts)).getFullYear()],["month",ts=>(new Date(ts)).getMonth()],["date",ts=>(new Date(ts)).getDate()],["day",ts=>(new Date(ts)).getDay()],["hours",ts=>(new Date(ts)).getHours()],["minutes",ts=>(new Date(ts)).getMinutes()],["seconds",ts=>(new Date(ts)).getSeconds()],["milliseconds",ts=>(new Date(ts)).getMilliseconds()]]));
-getters.set("universal",new Map([["year",ts=>(new Date(ts)).getUTCFullYear()],["month",ts=>(new Date(ts)).getUTCMonth()],["date",ts=>(new Date(ts)).getUTCDate()],["day",ts=>(new Date(ts)).getUTCDay()],["hours",ts=>(new Date(ts)).getUTCHours()],["minutes",ts=>(new Date(ts)).getUTCMinutes()],["seconds",ts=>(new Date(ts)).getUTCSeconds()],["milliseconds",ts=>(new Date(ts)).getUTCMilliseconds()]]));const setters=new Map;
-setters.set("local",new Map([["year",(ts,year)=>(new Date(ts)).setFullYear(year)],["month",(ts,month)=>(new Date(ts)).setMonth(month)],["date",(ts,date)=>(new Date(ts)).setDate(date)],["hours",(ts,hours)=>(new Date(ts)).setHours(hours)],["minutes",(ts,minutes)=>(new Date(ts)).setMinutes(minutes)],["seconds",(ts,seconds)=>(new Date(ts)).setSeconds(seconds)],["milliseconds",(ts,milliseconds)=>(new Date(ts)).setMilliseconds(milliseconds)]]));
-setters.set("universal",new Map([["year",(ts,year)=>(new Date(ts)).setUTCFullYear(year)],["month",(ts,month)=>(new Date(ts)).setUTCMonth(month)],["date",(ts,date)=>(new Date(ts)).setUTCDate(date)],["hours",(ts,hours)=>(new Date(ts)).setUTCHours(hours)],["minutes",(ts,minutes)=>(new Date(ts)).setUTCMinutes(minutes)],["seconds",(ts,seconds)=>(new Date(ts)).setUTCSeconds(seconds)],["milliseconds",(ts,milliseconds)=>(new Date(ts)).setUTCMilliseconds(milliseconds)]]));
-C3.Plugins.Date.Exps={ToString(timeStamp){return(new Date(timeStamp)).toString()},ToDateString(timeStamp){return(new Date(timeStamp)).toDateString()},ToTimeString(timeStamp){return(new Date(timeStamp)).toTimeString()},ToLocaleString(timeStamp){return(new Date(timeStamp)).toLocaleString()},ToLocaleDateString(timeStamp){return(new Date(timeStamp)).toLocaleDateString()},ToLocaleTimeString(timeStamp){return(new Date(timeStamp)).toLocaleTimeString()},ToUTCString(timeStamp){return(new Date(timeStamp)).toUTCString()},
-Parse(dateString){return Date.parse(dateString)},Get(year,month,day,hours,minutes,seconds,milliseconds){return Date.UTC(year,month,day,hours,minutes,seconds,milliseconds)},Now(){return Date.now()},TimezoneOffset(){return(new Date(Date.now())).getTimezoneOffset()},GetYear(timeStamp){return getters.get("local").get("year")(timeStamp)},GetUTCYear(timeStamp){return getters.get("universal").get("year")(timeStamp)},GetMonth(timeStamp){return getters.get("local").get("month")(timeStamp)},GetUTCMonth(timeStamp){return getters.get("universal").get("month")(timeStamp)},
-GetDate(timeStamp){return getters.get("local").get("date")(timeStamp)},GetUTCDate(timeStamp){return getters.get("universal").get("date")(timeStamp)},GetDay(timeStamp){return getters.get("local").get("day")(timeStamp)},GetUTCDay(timeStamp){return getters.get("universal").get("day")(timeStamp)},GetHours(timeStamp){return getters.get("local").get("hours")(timeStamp)},GetUTCHours(timeStamp){return getters.get("universal").get("hours")(timeStamp)},GetMinutes(timeStamp){return getters.get("local").get("minutes")(timeStamp)},
-GetUTCMinutes(timeStamp){return getters.get("universal").get("minutes")(timeStamp)},GetSeconds(timeStamp){return getters.get("local").get("seconds")(timeStamp)},GetUTCSeconds(timeStamp){return getters.get("universal").get("seconds")(timeStamp)},GetMilliseconds(timeStamp){return getters.get("local").get("milliseconds")(timeStamp)},GetUTCMilliseconds(timeStamp){return getters.get("universal").get("milliseconds")(timeStamp)},ChangeYear(timeStamp,year){return setters.get("local").get("year")(timeStamp,
-year)},ChangeUTCYear(timeStamp,year){return setters.get("universal").get("year")(timeStamp,year)},ChangeMonth(timeStamp,month){return setters.get("local").get("month")(timeStamp,month)},ChangeUTCMonth(timeStamp,month){return setters.get("universal").get("month")(timeStamp,month)},ChangeDate(timeStamp,date){return setters.get("local").get("date")(timeStamp,date)},ChangeUTCDate(timeStamp,date){return setters.get("universal").get("date")(timeStamp,date)},ChangeDay(timeStamp,targetDay){const year=C3.Plugins.Date.Exps.GetYear(timeStamp);
-const month=C3.Plugins.Date.Exps.GetMonth(timeStamp);const date=C3.Plugins.Date.Exps.GetDate(timeStamp);const hours=C3.Plugins.Date.Exps.GetHours(timeStamp);const minutes=C3.Plugins.Date.Exps.GetMinutes(timeStamp);const seconds=C3.Plugins.Date.Exps.GetSeconds(timeStamp);const milliseconds=C3.Plugins.Date.Exps.GetMilliseconds(timeStamp);const currentDay=C3.Plugins.Date.Exps.GetDay(timeStamp);const distance=targetDay-currentDay;return(new Date(year,month,date+distance,hours,minutes,seconds,milliseconds)).getTime()},
-ChangeUTCDay(timeStamp,targetDay){const year=C3.Plugins.Date.Exps.GetUTCYear(timeStamp);const month=C3.Plugins.Date.Exps.GetUTCMonth(timeStamp);const date=C3.Plugins.Date.Exps.GetUTCDate(timeStamp);const hours=C3.Plugins.Date.Exps.GetUTCHours(timeStamp);const minutes=C3.Plugins.Date.Exps.GetUTCMinutes(timeStamp);const seconds=C3.Plugins.Date.Exps.GetUTCSeconds(timeStamp);const milliseconds=C3.Plugins.Date.Exps.GetUTCMilliseconds(timeStamp);const currentDay=C3.Plugins.Date.Exps.GetUTCDay(timeStamp);
-const distance=targetDay-currentDay;return C3.Plugins.Date.Exps.Get(year,month,date+distance,hours,minutes,seconds,milliseconds)},ChangeHours(timeStamp,hours){return setters.get("local").get("hours")(timeStamp,hours)},ChangeUTCHours(timeStamp,hours){return setters.get("universal").get("hours")(timeStamp,hours)},ChangeMinutes(timeStamp,minutes){return setters.get("local").get("minutes")(timeStamp,minutes)},ChangeUTCMinutes(timeStamp,minutes){return setters.get("universal").get("minutes")(timeStamp,
-minutes)},ChangeSeconds(timeStamp,seconds){return setters.get("local").get("seconds")(timeStamp,seconds)},ChangeUTCSeconds(timeStamp,seconds){return setters.get("universal").get("seconds")(timeStamp,seconds)},ChangeMilliseconds(timeStamp,milliseconds){return setters.get("local").get("milliseconds")(timeStamp,milliseconds)},ChangeUTCMilliseconds(timeStamp,milliseconds){return setters.get("universal").get("milliseconds")(timeStamp,milliseconds)},Difference(firstTimeStamp,secondTimeStamp){return secondTimeStamp-
-firstTimeStamp},ToTimerHours(milliseconds){return Math.trunc(C3.Plugins.Date.Exps.ToTotalHours(milliseconds))},ToTimerMinutes(milliseconds){return Math.trunc(C3.Plugins.Date.Exps.ToTotalMinutes(milliseconds))%60},ToTimerSeconds(milliseconds){return Math.trunc(C3.Plugins.Date.Exps.ToTotalSeconds(milliseconds))%60},ToTimerMilliseconds(milliseconds){return milliseconds%1E3},ToTotalHours(milliseconds){return milliseconds/(1E3*60*60)},ToTotalMinutes(milliseconds){return milliseconds/(1E3*60)},ToTotalSeconds(milliseconds){return milliseconds/
-1E3}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.PlatformInfo=class PlatformInfoPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.PlatformInfo.Type=class PlatformInfoType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
-
-}
-
-{
-'use strict';const C3=self.C3;const DOM_COMPONENT_ID="platform-info";
-C3.Plugins.PlatformInfo.Instance=class PlatformInfoInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._screenWidth=0;this._screenHeight=0;this._windowOuterWidth=0;this._windowOuterHeight=0;this._safeAreaInset=[0,0,0,0];this._supportsWakeLock=false;this._isWakeLockActive=false;this.AddDOMMessageHandlers([["window-resize",e=>this._OnWindowResize(e)],["wake-lock-acquired",e=>this._OnWakeLockAcquired(e)],["wake-lock-error",e=>this._OnWakeLockError(e)],["wake-lock-released",
-e=>this._OnWakeLockReleased(e)]]);if(navigator.connection)navigator.connection.addEventListener("change",()=>this._OnNetworkChange());this._runtime.AddLoadPromise(this.PostToDOMAsync("get-initial-state").then(data=>{this._screenWidth=data["screenWidth"];this._screenHeight=data["screenHeight"];this._windowOuterWidth=data["windowOuterWidth"];this._windowOuterHeight=data["windowOuterHeight"];this._safeAreaInset=data["safeAreaInset"];this._supportsWakeLock=data["supportsWakeLock"]}))}Release(){super.Release()}_OnWindowResize(e){this._windowOuterWidth=
-e["windowOuterWidth"];this._windowOuterHeight=e["windowOuterHeight"];this._safeAreaInset=e["safeAreaInset"]}async _OnNetworkChange(){await this.TriggerAsync(C3.Plugins.PlatformInfo.Cnds.OnNetworkChange)}async _OnWakeLockAcquired(){this._isWakeLockActive=true;await this.TriggerAsync(C3.Plugins.PlatformInfo.Cnds.OnWakeLockAcquired)}async _OnWakeLockError(){this._isWakeLockActive=false;await this.TriggerAsync(C3.Plugins.PlatformInfo.Cnds.OnWakeLockError)}async _OnWakeLockReleased(){this._isWakeLockActive=
-false;await this.TriggerAsync(C3.Plugins.PlatformInfo.Cnds.OnWakeLockReleased)}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.PlatformInfo.Cnds={IsOnMobile(){return C3.Platform.IsMobile},IsOnWindows(){return C3.Platform.OS==="Windows"},IsOnMacOS(){return C3.Platform.OS==="Mac OS X"},IsOnLinux(){return C3.Platform.OS==="Linux"},IsOnChromeOS(){return C3.Platform.OS==="Chrome OS"},IsOnAndroid(){return C3.Platform.OS==="Android"},IsOniOS(){return C3.Platform.OS==="iOS"},IsWebExport(){const exportType=this._runtime.GetExportType();return exportType==="html5"||exportType==="scirra-arcade"||exportType==="preview"||exportType===
-"instant-games"},IsCordovaExport(){return this._runtime.IsCordova()},IsNWjsExport(){return this._runtime.GetExportType()==="nwjs"},IsWindowsUWPExport(){return this._runtime.GetExportType()==="windows-uwp"},IsWindowsWebView2Export(){return this._runtime.GetExportType()==="windows-webview2"},IsMacOSWKWebView2Export(){return this._runtime.GetExportType()==="macos-wkwebview"},OnNetworkChange(){return true},OnWakeLockAcquired(){return true},OnWakeLockError(){return true},OnWakeLockReleased(){return true},
-IsWakeLockActive(){return this._isWakeLockActive},IsWakeLockSupported(){return this._supportsWakeLock}};
-
-}
-
-{
-'use strict';const C3=self.C3;C3.Plugins.PlatformInfo.Acts={RequestWakeLock(){if(!this._supportsWakeLock)return;this._PostToDOMMaybeSync("request-wake-lock")},ReleaseWakeLock(){if(!this._supportsWakeLock)return;this._isWakeLockActive=false;this.PostToDOM("release-wake-lock")}};
-
-}
-
-{
-'use strict';const C3=self.C3;
-C3.Plugins.PlatformInfo.Exps={Renderer(){let ret="";if(this._runtime.GetWebGPURenderer())ret="webgpu";else ret="webgl"+this._runtime.GetWebGLRenderer().GetWebGLVersionNumber();if(this._runtime.GetRenderer().HasMajorPerformanceCaveat())ret+="-software";return ret},RendererDetail(){return this._runtime.GetWebGLRenderer().GetUnmaskedRenderer()},DevicePixelRatio(){return self.devicePixelRatio},ScreenWidth(){return this._screenWidth},ScreenHeight(){return this._screenHeight},WindowInnerWidth(){return this._runtime.GetCanvasManager().GetLastWidth()},
-WindowInnerHeight(){return this._runtime.GetCanvasManager().GetLastHeight()},WindowOuterWidth(){return this._windowOuterWidth},WindowOuterHeight(){return this._windowOuterHeight},CanvasCssWidth(){return this._runtime.GetCanvasManager().GetCssWidth()},CanvasCssHeight(){return this._runtime.GetCanvasManager().GetCssHeight()},CanvasDeviceWidth(){return this._runtime.GetCanvasManager().GetDeviceWidth()},CanvasDeviceHeight(){return this._runtime.GetCanvasManager().GetDeviceHeight()},Downlink(){if(navigator.connection)return navigator.connection["downlink"]||
-0;else return 0},DownlinkMax(){if(navigator.connection)return navigator.connection["downlinkMax"]||0;else return 0},ConnectionType(){if(navigator.connection)return navigator.connection["type"]||"unknown";else return"unknown"},ConnectionEffectiveType(){if(navigator.connection)return navigator.connection["effectiveType"]||"unknown";else return"unknown"},ConnectionRTT(){if(navigator.connection)return navigator.connection["rtt"]||0;else return 0},HardwareConcurrency(){return navigator.hardwareConcurrency||
-0},DeviceMemory(){return navigator.deviceMemory||0},SafeAreaInsetTop(){return this._safeAreaInset[0]},SafeAreaInsetRight(){return this._safeAreaInset[1]},SafeAreaInsetBottom(){return this._safeAreaInset[2]},SafeAreaInsetLeft(){return this._safeAreaInset[3]}};
-
-}
-
-{
-"use strict";
-{
-    const C3 = self.C3;
-
-    C3.Plugins.CV_MobileOneSignal = class Mobile_OneSignal_Plugin extends C3.SDKPluginBase
-    {
-        constructor(opts)
-        {
-            super(opts);
-        }
-
-        Release()
-        {
-            super.Release();
-        }
-    };
-}
-}
-
-{
-"use strict";
-{
-    const C3 = self.C3;
-
-    C3.Plugins.CV_MobileOneSignal.Type = class Mobile_OneSignal_Type extends C3.SDKTypeBase
-    {
-        constructor(objectClass)
-        {
-            super(objectClass);
-        }
-
-        Release()
-        {
-            super.Release();
-        }
-
-        OnCreate()
-        {}
-    };
-}
-}
-
-{
-"use strict";
-{
-    const C3 = self.C3;
-
-    const DOM_COMPONENT_ID = "cv-mobile-onesignal";
-
-    C3.Plugins.CV_MobileOneSignal.Instance = class Mobile_OneSignal_Instance extends C3.SDKInstanceBase
-    {
-        constructor(inst, properties)
-        {
-            super(inst, DOM_COMPONENT_ID);
-
-            if (properties)
-            {
-                this._debug = properties[0];
-                this._appID = properties[1];
-
-                this._inFocusDisplaying = properties[2]; // notification; inappalert; none
-
-                this._iosAutoPrompt = properties[3];
-                this._iosInAppLaunchURL = properties[4];
-
-                this._logLevel = properties[5];     // 0 to 6
-                this._visualLevel = properties[6];  // 0 to 6
-
-                this._requiresConsent = properties[7];
-
-                this._permissionObserver = properties[8] === 1 ? true : false; // manual; auto-update                
-                this._subscriptionObserver = properties[9] === 1 ? true : false; // manual; auto-update
-
-                this._locationShared = properties[10];
-                
-                this._emailObserver = properties[11] === 1 ? true : false; // manual; auto-update
-            }
-
-            this.Initialize();
-        }
-
-        Release()
-        {
-            super.Release();
-        }
-
-        SaveToJson()
-        {
-            return {};
-        }
-
-        LoadFromJson(o)
-        {
-        }
-
-        ///////////////////////////////////////
-		// Core Methods
-        Initialize()
-        {
-            //** Construct 3 Memory **//
-            this._C3Memory = {
-
-                notificationReceived: "",
-                notificationOpened: "",
-                
-                iOSPermission: false,
-                
-                PermissionSubscriptionStatus: "",
-
-                PermissionStatus: "",
-                SubscriptionStatus: "",
-
-                Tags: "",
-
-                PostNotificationData: "",
-
-                providedConsent: false,
-
-                TriggerValue: 0,
-
-                ObserverPermissionStatus: "",
-                ObserverSubscriptionStatus: "",
-
-                EmailStatus: ""
-            }
-
-            //** Construct 3 Current **//
-            this._C3Current = {
-
-                subscribed: false,
-                userSubscriptionSetting: false,
-                userID: "",
-                pushToken: "",
-
-                status: 0, // 0, 1, 2
-                state: 0,  // 1, 2 // Purposely just set to 0.
-                hasPrompted: false,
-                provisional: false,
-
-                recentTriggerKey: "",
-
-                newEmail: "",
-                newEmailUserID: "",
-                oldEmail: "",
-                oldEmailUserID: "",
-
-                firstClick: false,
-                closesMessage: false,
-                clickURL: "",
-                clickName: "",
-
-                SendTagsStack: {},
-                DeleteTagsStack: [],
-
-                AddTriggersStack: {},
-                RemoveTriggersStack: []
-            };
-
-            //** System References **//
-            const self = this;
-
-            //** Construct 3 Trigger **//
-            this._C3Trigger = {
-
-                HandlerNotificationReceived:(data) =>
-                {
-                    const notificationData = JSON.stringify(data);
-                    self._C3Memory.notificationReceived = notificationData;
-
-                    self.Debug(true, "On Notification Received", "The JSON data string below is retrievable through the expression \"NotificationReceivedData\".", data);
-
-                    const trigger = self.Conditions().OnNotificationReceived;
-                    self.Trigger(trigger);
-                },
-                HandlerNotificationOpened: (data) =>
-                {
-                    const notificationData = JSON.stringify(data);
-                    self._C3Memory.notificationOpened = notificationData;
-
-                    self.Debug(true, "On Notification Opened", "The JSON data string below is retrievable through the expression \"NotificationOpenedData\".", data);
-
-                    const trigger = self.Conditions().OnNotificationOpened;
-                    self.Trigger(trigger);
-                },
-
-                IOSPermissionUserResponse: (accepted) =>
-                {
-                    self._C3Memory.iOSPermission = accepted;
-
-                    self.Debug(accepted, "On Prompt Push Notification Permission", "The user responded \"(" + accepted + "\") to allow push notifications from a prompt dialog. Use the condition \"Is Consent Provided\" to return the boolean response.", undefined);
-
-                    const trigger = self.Conditions().OnPromptPushNotificationPermission;
-                    self.Trigger(trigger);
-                },
-
-                GetPermissionSubscriptionState: (data) =>
-                {
-                    const permission = data["permissionStatus"];
-                    const subscription = data["subscriptionStatus"];
-
-                    const status = permission["status"];
-                    const state = permission["state"];
-                    const hasPrompted = permission["hasPrompted"];
-                    const provisional = permission["provisional"];
-
-                    const subscribed = subscription["subscribed"];
-                    const userSubscriptionSetting = subscription["userSubscriptionSetting"];
-                    const userID = subscription["userId"];
-                    const pushToken = subscription["pushToken"];
-
-                    self._C3Current.status = status;
-                    self._C3Current.state = state;
-                    self._C3Current.hasPrompted = hasPrompted;
-                    self._C3Current.provisional = provisional;                    
-
-                    self._C3Current.subscribed = subscribed;
-                    self._C3Current.userSubscriptionSetting = userSubscriptionSetting;
-                    self._C3Current.userID = userID;
-                    self._C3Current.pushToken = pushToken;
-
-                    const permissionSubscriptionData = JSON.stringify(data);
-
-                    const permissionData = JSON.stringify(permission);                    
-                    const subscriptionData = JSON.stringify(subscription);
-
-                    self._C3Memory.PermissionSubscriptionStatus = permissionSubscriptionData;
-
-                    self._C3Memory.PermissionStatus = permissionData;                    
-                    self._C3Memory.SubscriptionStatus = subscriptionData;
-
-                    self.Debug(true, "On Get Permission Subscription State", "The \"Status\", \"Status : Permission Status\" and \"Status : Subscription Status\" expression categories were updated.", data);                    
-
-                    const trigger = self.Conditions().OnGetPermissionSubscriptionState;
-                    self.Trigger(trigger);
-                },
-
-                GetTags: (data) =>
-                {
-                    const tags = JSON.stringify(data);
-                    
-                    self._C3Memory.Tags = tags;
-
-                    self.Debug(true, "On Get Tags", "The JSON data string below is retrievable through the expression \"Tags\".", data);
-
-                    const trigger = self.Conditions().OnGetTags;
-                    self.Trigger(trigger);                    
-                },
-
-                PostNotification_Success: (response) =>
-                {
-                    const data = JSON.stringify(response);
-                    
-                    self._C3Memory.PostNotificationData = data;
-
-                    self.Debug(true, "On Post Notification Success", "The JSON data string below is retrievable through the expression \"PostNotificationData\".", response);
-
-                    const trigger = self.Conditions().OnPostNotificationSuccess;
-                    self.Trigger(trigger);             
-                },
-
-                PostNotification_Failure: (response) =>
-                {
-                    const data = JSON.stringify(response);
-                    
-                    self._C3Memory.PostNotificationData = data;
-
-                    self.Debug(false, "On Post Notification Failure", "The JSON data string of the (error) below is retrievable through the expression \"PostNotificationData\".", response);
-
-                    const trigger = self.Conditions().OnPostNotificationFailure;
-                    self.Trigger(trigger);             
-                },
-
-                UserProvidedConsent: (providedConsent) =>
-                {
-                    self._C3Memory.providedConsent = providedConsent;
-
-                    self.Debug(providedConsent, "On Check If User Provided Consent", "User Provided Privacy Consent : (" + providedConsent + ").", undefined);
-
-                    const trigger = self.Conditions().OnCheckIfUserProvidedConsent;
-                    self.Trigger(trigger);
-                },
-
-                GetTriggerValue: (value) =>
-                {
-                    self._C3Memory.TriggerValue = value;
-
-                    self.Debug(true, "On Get Trigger Value From Key", "(Key:" + self._C3Current.recentTriggerKey + ", Value: " + 
-                    self._C3Memory.TriggerValue + "). The trigger value is retrievable using the expression \"TriggerValue\".", undefined);
-
-                    const trigger = self.Conditions().OnGetTriggerValue;
-                    self.Trigger(trigger);                      
-                },
-
-                SetEmail_Success: () =>
-                {
-                    self.Debug(true, "On Set Email Success", undefined, undefined);
-
-                    const trigger = self.Conditions().OnSetEmailSuccess;
-                    self.Trigger(trigger);
-                },
-
-                SetEmail_Failure: (error) =>
-                {
-                    self.Debug(false, "On Set Email Failure", "The error data in JSON.", error);
-
-                    const trigger = self.Conditions().OnSetEmailFailure;
-                    self.Trigger(trigger);
-                },
-
-                LogoutEmail_Success: (response) =>
-                {
-                    self.Debug(true, "On Logout Email Success", "The response from the server, in JSON.", response);
-
-                    const trigger = self.Conditions().OnLogoutEmailSuccess;
-                    self.Trigger(trigger);
-                },
-
-                LogoutEmail_Failure: (error) =>
-                {
-                    self.Debug(false, "On Logout Email Failed", "The response from the server, in JSON.", error);
-
-                    const trigger = self.Conditions().OnLogoutEmailFailure;
-                    self.Trigger(trigger);
-                },
-
-                PermissionStatusChanged: (data) =>
-                {
-                    const permission = data["permissionStatus"]["to"];
-
-                    const status = permission["status"];
-                    const state = permission["state"];
-                    const hasPrompted = permission["hasPrompted"];
-                    const provisional = permission["provisional"];
-
-                    self._C3Current.status = status;
-                    self._C3Current.state = state;
-                    self._C3Current.hasPrompted = hasPrompted;
-                    self._C3Current.provisional = provisional;                    
-
-                    const observerData = JSON.stringify(data);
-                    const permissionData = JSON.stringify(permission);        
-
-                    self._C3Memory.ObserverPermissionStatus = observerData;
-                    self._C3Memory.PermissionStatus = permissionData;                    
-
-                    self.Debug(true, "On Notification Permission State Changed", "The \"Status : Permission Status\" expression category and both the \"PermissionStatus\" and \"ObserverPermissionStatus\" expressions were updated.", data);                    
-
-                    const trigger = self.Conditions().OnPermissionStatusChanged;
-                    self.Trigger(trigger);                    
-                },
-
-                SubscriptionStatusChanged: (data) =>
-                {
-                    const subscription = data["subscriptionStatus"]["to"];
-
-                    const subscribed = subscription["subscribed"];
-                    const userSubscriptionSetting = subscription["userSubscriptionSetting"];
-                    const userID = subscription["userId"];
-                    const pushToken = subscription["pushToken"];      
-
-                    self._C3Current.subscribed = subscribed;
-                    self._C3Current.userSubscriptionSetting = userSubscriptionSetting;
-                    self._C3Current.userID = userID;
-                    self._C3Current.pushToken = pushToken;
-
-                    const observerData = JSON.stringify(data); 
-                    const subscriptionData = JSON.stringify(subscription);
-       
-                    self._C3Memory.ObserverSubscriptionStatus = observerData;
-                    self._C3Memory.SubscriptionStatus = subscriptionData;
-                   
-                    self.Debug(true, "On Notification Subscription State Changed", "The \"Status : Subscription Status\" expression category and both the \"SubscriptionStatus\" and \"ObserverSubscriptionStatus\" expressions were updated.", data);
-
-                    const trigger = self.Conditions().OnSubscriptionStatusChanged;
-                    self.Trigger(trigger);
-                },
-
-                EmailStatusChanged: (data) =>
-                {
-                    const isOldEmailExisting = typeof data["from"]["emailAddress"] === "undefined" ? false : true;
-                    const isOldUserIDExisting = typeof data["from"]["emailUserId"] === "undefined" ? false : true;
-
-                    self._C3Current.newEmail = data["to"]["emailAddress"];
-                    self._C3Current.newEmailUserID = data["to"]["emailUserId"];
-                    self._C3Current.oldEmail = isOldEmailExisting === true ? data["from"]["emailAddress"] : "";
-                    self._C3Current.oldEmailUserID = isOldUserIDExisting === true ? data["from"]["emailUserId"] : "";
-
-                    const emailStatus = JSON.stringify(data);
-                    self._C3Memory.EmailStatus = emailStatus;
-
-                    self.Debug(true, "On Email Status Changed", "The \"Email : Status\" expression category was updated.", data);
-
-                    const trigger = self.Conditions().OnEmailStatusChanged;
-                    self.Trigger(trigger);
-                },
-
-                InAppMessageClicked: (data) =>
-                {
-                    self._C3Current.firstClick = data["first_click"];
-                    self._C3Current.closesMessage = data["closes_message"];
-                    self._C3Current.clickURL = data["click_url"];
-                    self._C3Current.clickName = data["click_name"];
-
-                    self.Debug(true, "On In-App Message Clicked", "The \"In-App - MISC\" expression category was updated.", data);
-
-                    const trigger = self.Conditions().OnInAppMessageClicked;
-                    self.Trigger(trigger);
-                }
-            };
-
-			//** Construct 3 DOM Handlers **//
-            this.AddDOMMessageHandlers([
-                ["start-sdk", e => this._StartSDK(...e)],
-                
-				["handler-notification-received", e => this._C3Trigger.HandlerNotificationReceived(...e)],
-				["handler-notification-opened", e => this._C3Trigger.HandlerNotificationOpened(...e)],
-				["ios-permission-user-response", e => this._C3Trigger.IOSPermissionUserResponse(...e)],
-                ["get-permission-subscription-state", e => this._C3Trigger.GetPermissionSubscriptionState(...e)],
-                ["get-tags", e => this._C3Trigger.GetTags(...e)],
-				["post-notification-success", e => this._C3Trigger.PostNotification_Success(...e)],
-				["post-notification-failure", e => this._C3Trigger.PostNotification_Failure(...e)],
-				["user-provided-consent", e => this._C3Trigger.UserProvidedConsent(...e)],
-				["get-trigger-value", e => this._C3Trigger.GetTriggerValue(...e)],
-				["set-email-success", e => this._C3Trigger.SetEmail_Success(...e)],
-				["set-email-failure", e => this._C3Trigger.SetEmail_Failure(...e)],
-				["logout-email-success", e => this._C3Trigger.LogoutEmail_Success(...e)],
-				["logout-email-failure", e => this._C3Trigger.LogoutEmail_Failure(...e)],
-				["permission-status-changed", e => this._C3Trigger.PermissionStatusChanged(...e)],
-				["subscription-status-changed", e => this._C3Trigger.SubscriptionStatusChanged(...e)],
-				["email-status-changed", e => this._C3Trigger.EmailStatusChanged(...e)],
-				["in-app-message-clicked", e => this._C3Trigger.InAppMessageClicked(...e)]
-            ]);
-        
-            //** Start OneSignal SDK **//
-            this.PostToDOM("start-sdk", [this._appID, this._inFocusDisplaying, this._iosAutoPrompt, this._iosInAppLaunchURL,
-                this._logLevel, this._visualLevel, this._requiresConsent, this._locationShared, this._permissionObserver,
-                this._subscriptionObserver,this._emailObserver]);
-        }
-
-        ///////////////////////////////////////
-		// DOM Methods
-        _StartSDK()
-        {
-            this._isMobile = true;
-        }
-
-		///////////////////////////////////////
-		// Action Methods (DOM)
-        _ProvideUserConsent(consent)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("provide-user-consent", [consent]);
-        }
-
-        _PromptForPushNotificationsPermission() // Requirement: kOSSettingsKeyAutoPrompt = false;
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("prompt-for-push-notification-permission", []);
-        }
-
-        _GetPermissionSubscriptionState()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("get-permission-subscription-state", []);
-        }
-
-        _GetTags()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("get-tags", []);
-        }
-
-        _SendTag(key, value)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("send-tag", [key, value]);
-        }
-
-        // _PlanSendTag(key, value)
-
-        _SendTags()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-
-            const stack = this._C3Current.SendTagsStack;
-            this.PostToDOM("send-tags", [stack]);
-
-            this._C3Current.SendTagsStack = {};
-        }        
-
-        _DeleteTag(key)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("delete-tag", [key]);
-        }
-
-        // _PlanDeleteTag(key)
-
-        _DeleteTags()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            
-            const stack = this._C3Current.DeleteTagsStack;
-            this.PostToDOM("delete-tags", [stack]);
-
-            this._C3Current.DeleteTagsStack = [];
-        }
-
-        _PromptLocation()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("prompt-location", []);
-        }
-
-        _PostNotification(paramJSON)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("post-notification", [paramJSON]);
-        }
-
-        _ClearNotifications()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("clear-notifications", []);
-        }
-
-        _SetSubscription(toggle)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("set-subscription", [toggle]);
-        }
-
-        _CheckIfUserProvidedConsent()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("check-if-user-provided-consent", []);
-        }       
-
-        _AddTrigger(key, value)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("add-trigger", [key, value]);
-        }
-
-        // _PlanAddTrigger(key, value)
-
-        _AddTriggers()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-
-            const stack = this._C3Current.AddTriggersStack;
-            this.PostToDOM("add-triggers", [stack]);
-
-            this._C3Current.AddTriggersStack = {};
-        }
-
-        _RemoveTrigger(key)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("remove-trigger", [key]);
-        }
-
-        // _PlanRemoveTrigger(key)
-
-        _RemoveTriggers()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-
-            const stack = this._C3Current.RemoveTriggersStack;
-            this.PostToDOM("remove-triggers", [stack]);
-
-            this._C3Current.RemoveTriggersStack = [];
-        }
-
-        _GetTriggerValue(key)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("get-trigger-value", [key]);
-        }
-
-        _PauseInAppMessages(toggle)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("pause-in-app-messages", [toggle]);
-        }
-
-        _SetEmail(emailAddress, emailAuthToken)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("set-email", [emailAddress, emailAuthToken]);
-        }
-
-        _LogoutEmail()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("logout-email", []);
-        }
-
-        _SetExternalUserID(userID)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("set-external-user-id", [userID]);
-        }
-
-        _RemoveExternalUserID()
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("remove-external-user-id", []);
-        }
-
-        _EnableVibrate(toggle)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("enable-vibrate", [toggle]);
-        }
-
-        _EnableSound(toggle)
-        {
-            if (!this.IsDependencyCleared()) { return; }
-            this.PostToDOM("enable-sound", [toggle]);
-        }
-
-        ///////////////////////////////////////
-        // Action Methods (Main)
-        
-        _PlanSendTag(key, value)
-        {
-            this._C3Current.SendTagsStack[key] = value;
-        }
-
-        _PlanDeleteTag(key)
-        {
-            this._C3Current.DeleteTagsStack.push(key);
-        }
-
-        _PlanAddTrigger(key, value)
-        {
-            this._C3Current.AddTriggersStack[key] = value;
-        }
-
-        _PlanRemoveTrigger(key)
-        {
-            this._C3Current.RemoveTriggersStack.push(key);
-        }
-
-        ///////////////////////////////////////
-		// Utility Methods
-        Conditions()
-        {
-            return C3.Plugins.CV_MobileOneSignal.Cnds;
-        }
-
-        Debug(success = true, title = "", log = "", data = {})
-        {   
-            if (!this._debug) { return; }
-
-            const color = success ? "green" : "red";
-            console.log("%c%s", "color: " + color + "; background: black", title, log, data);
-        }
-
-        IsNull(o)
-        {
-            return (o == null);
-        }
-        
-        ///////////////////////////////////////
-		// Getter Methods
-		IsDependencyCleared ()
-		{
-			return this._isMobile;
-		}
-    };
-}
-}
-
-{
-"use strict";
-{
-    const C3 = self.C3;
-
-    C3.Plugins.CV_MobileOneSignal.Cnds = {
-        IsConsentProvided()
-        {
-            return this._C3Memory.providedConsent;
-        },
-
-        OnNotificationReceived()
-        {
-            return true;
-        },
-
-        OnNotificationOpened()
-        {
-            return true;
-        },
-
-        OnPromptPushNotificationPermission(response)
-        {
-            return this._C3Memory.iOSPermission == response;
-        },
-
-        OnCheckIfUserProvidedConsent()
-        {
-            return true;
-        },
-
-        OnGetPermissionSubscriptionState()
-        {
-            return true;
-        },
-
-        OnSubscriptionStatusChanged()
-        {
-            return true;
-        },
-
-        OnGetTags()
-        {
-            return true;
-        },
-
-        OnPermissionStatusChanged()
-        {
-            return true;
-        },
-
-        OnPostNotificationSuccess()
-        {
-            return true;
-        },
-
-        OnPostNotificationFailure()
-        {
-            return true;
-        },
-
-        OnGetTriggerValue(key)
-        {
-            return key === this._C3Current.recentTriggerKey;
-        },
-
-        OnInAppMessageClicked()
-        {
-            return true;
-        },
-
-        OnSetEmailSuccess()
-        {
-            return true;
-        },
-
-        OnSetEmailFailure()
-        {
-            return true;
-        },
-
-        OnLogoutEmailSuccess()
-        {
-            return true;
-        },
-
-        OnLogoutEmailFailure()
-        {
-            return true;
-        },
-
-        OnEmailStatusChanged()
-        {
-            return true;
-        }
-    };
-}
-}
-
-{
-"use strict";
-{
-    const C3 = self.C3;
-
-    C3.Plugins.CV_MobileOneSignal.Acts = {
-        ProvideUserConsent(consent)
-        {
-            this._ProvideUserConsent(consent);
-        },
-
-        PromptForPushNotificationsPermission()
-        {
-            this._PromptForPushNotificationsPermission();
-        },
-
-        GetPermissionSubscriptionState()
-        {
-            this._GetPermissionSubscriptionState();
-        },
-
-        GetTags()
-        {
-            this._GetTags();
-        },
-
-        SendTag(key, value)
-        {
-            this._SendTag(key, value);
-        },
-
-        PlanSendTag(key, value)
-        {
-            this._PlanSendTag(key, value);
-        },
-
-        SendTags()
-        {
-            this._SendTags();
-        },
-
-        DeleteTag(key)
-        {
-            this._DeleteTag(key);
-        },                
-
-        PlanDeleteTag(key)
-        {
-            this._PlanDeleteTag(key);
-        },    
-
-        DeleteTags()
-        {
-            this._DeleteTags();
-        },
-
-        PromptLocation()
-        {
-            this._PromptLocation();
-        },
-
-        PostNotification(paramJSON)
-        {
-            paramJSON = JSON.parse(paramJSON);
-            this._PostNotification(paramJSON);
-        },
-
-        ClearNotifications()
-        {
-            this._ClearNotifications();
-        },
-
-        SetSubscription(toggle)
-        {
-            this._SetSubscription(toggle);
-        },
-
-        CheckIfUserProvidedConsent()
-        {
-            this._CheckIfUserProvidedConsent();
-        },        
-
-        AddTrigger(key, value)
-        {
-            this._AddTrigger(key, value);
-        },    
-
-        PlanAddTrigger(key, value)
-        {
-            this._PlanAddTrigger(key, value);
-        },        
-
-        AddTriggers()
-        {
-            this._AddTriggers();
-        },        
-
-        RemoveTrigger(key)
-        {
-            this._RemoveTrigger(key);
-        },
-
-        PlanRemoveTrigger(key)
-        {
-            this._PlanRemoveTrigger(key);
-        },        
-
-        RemoveTriggers()
-        {
-            this._RemoveTriggers();
-        },
-
-        GetTriggerValue(key)
-        {
-            this._GetTriggerValue(key);
-        },
-
-        PauseInAppMessages(toggle)
-        {
-            this._PauseInAppMessages(toggle);
-        },
-
-        SetEmail(emailAddress, emailAuthToken)
-        {
-            this._SetEmail(emailAddress, emailAuthToken);
-        },
-
-        LogoutEmail()
-        {
-            this._LogoutEmail();
-        },
-
-        SetExternalUserID(userID)
-        {
-            this._SetExternalUserID(userID);
-        },
-
-        RemoveExternalUserID()
-        {
-            this._RemoveExternalUserID();
-        },
-
-        EnableVibrate(toggle)
-        {
-            this._EnableVibrate(toggle);
-        },
-
-        EnableSound(toggle)
-        {
-            this._EnableSound(toggle);
-        }
-    };
-}
-}
-
-{
-"use strict";
-{
-    const C3 = self.C3;
-
-    C3.Plugins.CV_MobileOneSignal.Exps = {
-        Subscribed()
-        {
-            return this._C3Current.subscribed === true ? "True" : "False";
-        },
-
-        UserSubscriptionSetting()
-        {
-            return this._C3Current.userSubscriptionSetting === true ? "True" : "False";
-        },
-
-        UserID()
-        {
-            if (this.IsNull(this._C3Current.userID)) { return ""; }
-            return this._C3Current.userID;
-        },
-
-        PushToken()
-        {
-            if (this.IsNull(this._C3Current.pushToken)) { return ""; }
-            return this._C3Current.pushToken;
-        },
-
-        Status()
-        {
-            if (this.IsNull(this._C3Current.status)) { return ""; }
-            return this._C3Current.status;
-        },
-
-        State()
-        {
-            if (this.IsNull(this._C3Current.state)) { return ""; }
-            return this._C3Current.state;
-        },
-
-        HasPrompted()
-        {
-            return this._C3Current.hasPrompted === true ? "True" : "False";
-        },
-
-        Provisional()
-        {
-            return this._C3Current.pushToken === true ? "True" : "False";
-        },
-
-        PermissionStatus()
-        {
-            if (this.IsNull(this._C3Current.PermissionStatus)) { return ""; }
-            return this._C3Memory.PermissionStatus;
-        },
-
-        SubscriptionStatus()
-        {
-            if (this.IsNull(this._C3Current.SubscriptionStatus)) { return ""; }
-            return this._C3Memory.SubscriptionStatus;
-        },
-
-        Tags()
-        {
-            if (this.IsNull(this._C3Memory.Tags)) { return ""; }
-            return this._C3Memory.Tags;
-        },
-
-        ObserverPermissionStatus()
-        {
-            if (this.IsNull(this._C3Memory.ObserverPermissionStatus)) { return ""; }
-            return this._C3Memory.ObserverPermissionStatus;
-        },        
-
-        ObserverSubscriptionStatus()
-        {
-            if (this.IsNull(this._C3Memory.ObserverSubscriptionStatus)) { return ""; }
-            return this._C3Memory.ObserverSubscriptionStatus;
-        },
-
-        PostNotificationData()
-        {
-            if (this.IsNull(this._C3Memory.PostNotificationData)) { return ""; }
-            return this._C3Memory.PostNotificationData;
-        },
-
-        NotificationReceivedData()
-        {
-            if (this.IsNull(this._C3Memory.notificationReceived)) { return ""; }
-            return this._C3Memory.notificationReceived;
-        },
-
-        NotificationOpenedData()
-        {
-            if (this.IsNull(this._C3Memory.notificationOpened)) { return ""; }
-            return this._C3Memory.notificationOpened;
-        },
-
-        TriggerValue()
-        {
-            if (this.IsNull(this._C3Memory.TriggerValue)) { return ""; }
-            return this._C3Memory.TriggerValue;
-        },
-
-        FirstClick()
-        {
-            return this._C3Current.firstClick === true ? "True" : "False";
-        },
-
-        ClosesMessage()
-        {
-            return this._C3Current.closesMessage === true ? "True" : "False";
-        },
-
-        ClickURL()
-        {
-            if (this.IsNull(this._C3Current.clickURL)) { return ""; }
-            return this._C3Current.clickURL;
-        },
-
-        ClickName()
-        {
-            if (this.IsNull(this._C3Current.clickName)) { return ""; }
-            return this._C3Current.clickName;
-        },
-
-        NewEmail()
-        {
-            if (this.IsNull(this._C3Current.newEmail)) { return ""; }
-            return this._C3Current.newEmail;
-        },
-
-        NewUserID()
-        {
-            if (this.IsNull(this._C3Current.newEmailUserID)) { return ""; }
-            return this._C3Current.newEmailUserID;
-        },
-
-        OldEmail()
-        {
-            if (this.IsNull(this._C3Current.oldEmail)) { return ""; }
-            return this._C3Current.oldEmail;
-        },
-
-        OldUserID()
-        {
-            if (this.IsNull(this._C3Current.oldEmailUserID)) { return ""; }
-            return this._C3Current.oldEmailUserID;
-        }
-    };
-}
 }
 
 {
@@ -8130,1778 +6857,1331 @@ WindowInnerHeight(){return this._runtime.GetCanvasManager().GetLastHeight()},Win
 }
 
 {
-'use strict';
+"use strict";
 {
-    C3.Plugins.Eponesh_GameScore = class GameScorePlugin extends C3.SDKPluginBase {
-        constructor(opts) {
-            super(opts, 'Eponesh_GameScore');
+    const C3 = self.C3;
+
+    C3.Plugins.CV_MobileOneSignal = class Mobile_OneSignal_Plugin extends C3.SDKPluginBase
+    {
+        constructor(opts)
+        {
+            super(opts);
         }
 
-        Release() {
+        Release()
+        {
             super.Release();
         }
     };
 }
-
 }
 
 {
-'use strict';
+"use strict";
 {
-    C3.Plugins.Eponesh_GameScore.Type = class GameScoreType extends C3.SDKTypeBase {
-        constructor(objectClass) {
+    const C3 = self.C3;
+
+    C3.Plugins.CV_MobileOneSignal.Type = class Mobile_OneSignal_Type extends C3.SDKTypeBase
+    {
+        constructor(objectClass)
+        {
             super(objectClass);
         }
 
-        Release() {
+        Release()
+        {
             super.Release();
         }
 
-        OnCreate() {}
+        OnCreate()
+        {}
     };
 }
-
 }
 
 {
-'use strict';
+"use strict";
 {
-    const SERVER_HOST = 'https://gs.eponesh.com';
-    // const SERVER_HOST = 'https://gs.eponesh.com';
+    const C3 = self.C3;
 
-    C3.Plugins.Eponesh_GameScore.Instance = class GameScoreInstance extends C3.SDKInstanceBase {
-        constructor(inst, properties) {
-            super(inst);
+    const DOM_COMPONENT_ID = "cv-mobile-onesignal";
 
-            this.mappers = {
-                language: ['en', 'ru', 'fr', 'it', 'de', 'es', 'zh', 'pt', 'ko', 'ja'],
-                avatarGenerator: [
-                    'dicebear_retro',
-                    'dicebear_identicon',
-                    'dicebear_human',
-                    'dicebear_micah',
-                    'dicebear_bottts',
-                    'icotar',
-                    'robohash_robots',
-                    'robohash_cats'
-                ],
-                withMe: ['none', 'first', 'last'],
-                platform: ['YANDEX', 'VK', 'NONE', 'OK', 'GAME_MONETIZE', 'CRAZY_GAMES', 'GAME_DISTRIBUTION'],
-                compare: [
-                    (a, b) => a === b,
-                    (a, b) => a !== b,
-                    (a, b) => a < b,
-                    (a, b) => a <= b,
-                    (a, b) => a > b,
-                    (a, b) => a >= b
-                ]
-            };
+    C3.Plugins.CV_MobileOneSignal.Instance = class Mobile_OneSignal_Instance extends C3.SDKInstanceBase
+    {
+        constructor(inst, properties)
+        {
+            super(inst, DOM_COMPONENT_ID);
 
-            this.conditions = C3.Plugins.Eponesh_GameScore.Cnds;
-            this.actions = C3.Plugins.Eponesh_GameScore.Acts;
+            if (properties)
+            {
+                this._debug = properties[0];
+                this._appID = properties[1];
 
-            this.awaiters = {
-                player: {},
-                gs: {}
-            };
-            this.awaiters.gs.ready = new Promise((res, rej) => {
-                this.awaiters.gs.done = res;
-                this.awaiters.gs.abort = rej;
-            });
-            this.awaiters.player.ready = new Promise((res, rej) => {
-                this.awaiters.player.done = res;
-                this.awaiters.player.abort = rej;
-            });
+                this._inFocusDisplaying = properties[2]; // notification; inappalert; none
 
-            this.leaderboard = [];
-            this.currentLeaderboardIndex = 0;
-            this.currentLeaderboardPlayer = {};
-            this.lastLeaderboardTag = '';
-            this.lastLeaderboardPlayerRatingTag = '';
-            this.leaderboardPlayerPosition = 0;
+                this._iosAutoPrompt = properties[3];
+                this._iosInAppLaunchURL = properties[4];
 
-            this.currentPlayerFieldKey = '';
-            this.currentPlayerFieldType = '';
-            this.currentPlayerFieldName = '';
-            this.currentPlayerFieldValue = '';
+                this._logLevel = properties[5];     // 0 to 6
+                this._visualLevel = properties[6];  // 0 to 6
 
-            this.currentPlayerFieldVariantValue = '';
-            this.currentPlayerFieldVariantName = '';
-            this.currentPlayerFieldVariantIndex = 0;
+                this._requiresConsent = properties[7];
 
-            this.achievements = [];
-            this.achievementsGroups = [];
-            this.playerAchievements = [];
+                this._permissionObserver = properties[8] === 1 ? true : false; // manual; auto-update                
+                this._subscriptionObserver = properties[9] === 1 ? true : false; // manual; auto-update
 
-            this.currentAchievementIndex = 0;
-            this.currentAchievementId = 0;
-            this.currentAchievementTag = '';
-            this.currentAchievementName = '';
-            this.currentAchievementDescription = '';
-            this.currentAchievementIcon = '';
-            this.currentAchievementIconSmall = '';
-            this.currentAchievementRare = 'COMMON';
-            this.currentAchievementUnlocked = false;
-
-            this.currentAchievementsGroupIndex = 0;
-            this.currentAchievementsGroupId = 0;
-            this.currentAchievementsGroupTag = '';
-            this.currentAchievementsGroupName = '';
-            this.currentAchievementsGroupDescription = '';
-
-            this.currentPlayerAchievementIndex = 0;
-            this.currentPlayerAchievementId = 0;
-            this.currentPlayerAchievementUnlockDate = '';
-
-            this.isUnlockAchievementSuccess = false;
-            this.unlockAchievementError = '';
-
-            this.unlockedAchievementId = 0;
-            this.unlockedAchievementTag = '';
-            this.unlockedAchievementName = '';
-            this.unlockedAchievementDescription = '';
-            this.unlockedAchievementIcon = '';
-            this.unlockedAchievementIconSmall = '';
-            this.unlockedAchievementRare = 'COMMON';
-
-            this.isLastAdSuccess = false;
-            this.isLastShareSuccess = false;
-            this.isLastCommunityJoinSuccess = false;
-            this.isReady = false;
-            this.isPlayerReady = false;
-
-            this.projectId = Number(properties[0] || 0);
-            this.publicToken = properties[1];
-            this.showPreloaderOnStart = properties[2];
-            this.shouldWaitPlayerOnLoad = properties[3];
-
-            this._runtime.AddLoadPromise(this.awaiters.gs.ready);
-            if (this.shouldWaitPlayerOnLoad) {
-                this._runtime.AddLoadPromise(this.awaiters.player.ready);
+                this._locationShared = properties[10];
+                
+                this._emailObserver = properties[11] === 1 ? true : false; // manual; auto-update
             }
 
-            this._runtime.Dispatcher().addEventListener('afterfirstlayoutstart', () => {
-                if (this.isReady) {
-                    this.Trigger(this.conditions.OnReady);
-                }
-
-                if (this.isPlayerReady) {
-                    this.Trigger(this.conditions.OnPlayerReady);
-                }
-            });
-
-            this.loadLib();
+            this.Initialize();
         }
 
-        onError() {
-            const stub = () => Promise.resolve({});
-            this.awaiters.gs.done();
-            this.awaiters.player.done();
-            this.gs = {
-                on() {},
-                changeLanguage: stub,
-                changeAvatarGenerator: stub,
-                loadOverlay: stub,
-                isDev: false,
-                language: 'en',
-                avatarGenerator: 'dicebear_retro',
-                app: {
-                    title: '',
-                    description: '',
-                    image: '',
-                    url: ''
-                },
-                analytics: {
-                    on() {},
-                    hit() {},
-                    goal() {}
-                },
-                platform: {
-                    on() {},
-                    hasIntegratedAuth: false,
-                    type: 'NONE'
-                },
-                socials: {
-                    isSupportsNativeShare: false,
-                    isSupportsNativePosts: false,
-                    isSupportsNativeInvite: false,
-                    share: stub,
-                    post: stub,
-                    invite: stub
-                },
-                leaderboard: {
-                    on() {},
-                    open: stub,
-                    fetch: stub,
-                    fetchPlayerRating: stub
-                },
-                achievements: {
-                    on() {},
-                    has() {},
-                    open: stub,
-                    fetch: stub,
-                    unlock: stub
-                },
-                fullscreen: {
-                    isEnabled: false,
-                    on() {},
-                    open() {},
-                    close() {},
-                    toggle() {}
-                },
-                ads: {
-                    isFullscreenAvailable: false,
-                    isRewardedAvailable: false,
-                    isPreloaderAvailable: false,
-                    isStickyAvailable: false,
-                    isAdblockEnabled: false,
-                    on() {},
-                    showFullscreen: stub,
-                    showRewardedVideo: stub,
-                    showPreloader: stub,
-                    showSticky: stub,
-                    closeSticky: stub,
-                    refreshSticky: stub
-                },
-                player: {
-                    isStub: true,
-                    isLoggedIn: false,
-                    id: 0,
-                    name: '',
-                    avatar: '',
-                    on() {},
-                    sync: stub,
-                    load: stub,
-                    login: stub,
-                    fetchFields: stub,
-                    getField: stub,
-                    getFieldName: stub,
-                    getFieldVariantName: stub,
-                    add: stub,
-                    has: stub,
-                    get: stub,
-                    set: stub,
-                    toggle: stub,
-                    reset: stub,
-                    remove: stub,
-                    fields: []
-                }
-            };
-            this.isReady = true;
-            this.Trigger(this.conditions.OnReady);
-            this.isPlayerReady = true;
-            this.Trigger(this.conditions.OnPlayerReady);
-        }
-
-        loadLib() {
-            try {
-                window.onGSInit = (gs) => gs.ready.then(() => this.init(gs)).catch(() => this.onError());
-                ((d) => {
-                    var t = d.getElementsByTagName('script')[0];
-                    var s = d.createElement('script');
-                    s.src = `${SERVER_HOST}/sdk/game-score.js?projectId=${this.projectId}&publicToken=${this.publicToken}&callback=onGSInit`;
-                    s.async = true;
-                    s.onerror = () => this.onError();
-                    t.parentNode.insertBefore(s, t);
-                })(document);
-            } catch (err) {
-                console.error(err);
-                this.onError();
-            }
-        }
-
-        init(gs) {
-            this.gs = gs;
-
-            // player
-            this.gs.player.on('ready', () => {
-                this.isPlayerReady = true;
-                this.awaiters.player.done();
-                this.Trigger(this.conditions.OnPlayerReady);
-            });
-            this.gs.player.on('change', () => this.Trigger(this.conditions.OnPlayerChange));
-            this.gs.player.on('sync', (success) => {
-                this.Trigger(success ? this.conditions.OnPlayerSyncComplete : this.conditions.OnPlayerSyncError);
-            });
-            this.gs.player.on('load', (success) => {
-                this.Trigger(success ? this.conditions.OnPlayerLoadComplete : this.conditions.OnPlayerLoadError);
-            });
-            this.gs.player.on('login', (success) => {
-                this.Trigger(success ? this.conditions.OnPlayerLoginComplete : this.conditions.OnPlayerLoginError);
-            });
-            this.gs.player.on('fetchFields', (success) => {
-                this.Trigger(
-                    success ? this.conditions.OnPlayerFetchFieldsComplete : this.conditions.OnPlayerFetchFieldsError
-                );
-            });
-
-            // leaderboard
-            this.gs.leaderboard.on('open', () => this.Trigger(this.conditions.OnLeaderboardOpen));
-
-            // achievements
-            this.gs.achievements.on('open', () => this.Trigger(this.conditions.OnAchievementsOpen));
-            this.gs.achievements.on('close', () => this.Trigger(this.conditions.OnAchievementsClose));
-
-            // fullscreen
-            this.gs.fullscreen.on('open', () => this.Trigger(this.conditions.OnFullscreenOpen));
-            this.gs.fullscreen.on('close', () => this.Trigger(this.conditions.OnFullscreenClose));
-            this.gs.fullscreen.on('change', () => this.Trigger(this.conditions.OnFullscreenChange));
-
-            // ads
-            this.gs.ads.on('start', () => this.Trigger(this.conditions.OnAdsStart));
-            this.gs.ads.on('close', (success) => {
-                this.isLastAdSuccess = success;
-                this.Trigger(this.conditions.OnAdsClose);
-            });
-
-            this.gs.ads.on('fullscreen:start', () => this.Trigger(this.conditions.OnAdsFullscreenStart));
-            this.gs.ads.on('fullscreen:close', () => this.Trigger(this.conditions.OnAdsFullscreenClose));
-
-            this.gs.ads.on('preloader:start', () => this.Trigger(this.conditions.OnAdsPreloaderStart));
-            this.gs.ads.on('preloader:close', () => this.Trigger(this.conditions.OnAdsPreloaderClose));
-
-            this.gs.ads.on('rewarded:start', () => this.Trigger(this.conditions.OnAdsRewardedStart));
-            this.gs.ads.on('rewarded:close', () => this.Trigger(this.conditions.OnAdsRewardedClose));
-            this.gs.ads.on('rewarded:reward', () => this.Trigger(this.conditions.OnAdsRewardedReward));
-
-            this.gs.ads.on('sticky:start', () => this.Trigger(this.conditions.OnAdsStickyStart));
-            this.gs.ads.on('sticky:close', () => this.Trigger(this.conditions.OnAdsStickyClose));
-            this.gs.ads.on('sticky:refresh', () => this.Trigger(this.conditions.OnAdsStickyRefresh));
-            this.gs.ads.on('sticky:render', () => this.Trigger(this.conditions.OnAdsStickyRender));
-
-            // socials
-            this.gs.socials.on('share', (success) => {
-                this.isLastShareSuccess = success;
-                this.Trigger(this.conditions.OnSocialsShare);
-            });
-            this.gs.socials.on('post', (success) => {
-                this.isLastShareSuccess = success;
-                this.Trigger(this.conditions.OnSocialsPost);
-            });
-            this.gs.socials.on('invite', (success) => {
-                this.isLastShareSuccess = success;
-                this.Trigger(this.conditions.OnSocialsInvite);
-            });
-            this.gs.socials.on('joinCommunity', (success) => {
-                this.isLastCommunityJoinSuccess = success;
-                this.Trigger(this.conditions.OnSocialsJoinCommunity);
-            });
-
-            // gs
-            this.gs.on('change:language', () => this.Trigger(this.conditions.OnChangeLanguage));
-            this.gs.on('change:avatarGenerator', () => this.Trigger(this.conditions.OnChangeAvatarGenerator));
-            this.gs.on('overlay:ready', () => this.Trigger(this.conditions.OnOverlayReady));
-
-            // ready
-            this.isReady = true;
-            this.Trigger(this.conditions.OnReady);
-            this.awaiters.gs.done();
-
-            if (this.showPreloaderOnStart) {
-                this.gs.ads.showPreloader();
-            }
-        }
-
-        Release() {
+        Release()
+        {
             super.Release();
         }
 
-        SaveToJson() {
-            return {
-                leaderboard: this.leaderboard,
-                currentLeaderboardIndex: this.currentLeaderboardIndex,
-                currentLeaderboardPlayer: this.currentLeaderboardPlayer,
-                lastLeaderboardTag: this.lastLeaderboardTag,
-                lastLeaderboardPlayerRatingTag: this.lastLeaderboardPlayerRatingTag,
-                leaderboardPlayerPosition: this.leaderboardPlayerPosition,
+        SaveToJson()
+        {
+            return {};
+        }
 
-                currentPlayerFieldKey: this.currentPlayerFieldKey,
-                currentPlayerFieldType: this.currentPlayerFieldType,
-                currentPlayerFieldName: this.currentPlayerFieldName,
-                currentPlayerFieldValue: this.currentPlayerFieldValue,
+        LoadFromJson(o)
+        {
+        }
 
-                currentPlayerFieldVariantValue: this.currentPlayerFieldVariantValue,
-                currentPlayerFieldVariantName: this.currentPlayerFieldVariantName,
-                currentPlayerFieldVariantIndex: this.currentPlayerFieldVariantIndex,
+        ///////////////////////////////////////
+		// Core Methods
+        Initialize()
+        {
+            //** Construct 3 Memory **//
+            this._C3Memory = {
 
-                isLastAdSuccess: this.isLastAdSuccess,
-                isLastShareSuccess: this.isLastShareSuccess,
-                isLastCommunityJoinSuccess: this.isLastCommunityJoinSuccess,
-                isReady: this.isReady,
-                isPlayerReady: this.isPlayerReady,
+                notificationReceived: "",
+                notificationOpened: "",
+                
+                iOSPermission: false,
+                
+                PermissionSubscriptionStatus: "",
 
-                achievements: this.achievements,
-                achievementsGroups: this.achievementsGroups,
-                playerAchievements: this.playerAchievements,
+                PermissionStatus: "",
+                SubscriptionStatus: "",
 
-                currentAchievementIndex: this.currentAchievementIndex,
-                currentAchievementId: this.currentAchievementId,
-                currentAchievementTag: this.currentAchievementTag,
-                currentAchievementName: this.currentAchievementName,
-                currentAchievementDescription: this.currentAchievementDescription,
-                currentAchievementIcon: this.currentAchievementIcon,
-                currentAchievementIconSmall: this.currentAchievementIconSmall,
-                currentAchievementRare: this.currentAchievementRare,
-                currentAchievementUnlocked: this.currentAchievementUnlocked,
+                Tags: "",
 
-                currentAchievementsGroupIndex: this.currentAchievementsGroupIndex,
-                currentAchievementsGroupId: this.currentAchievementsGroupId,
-                currentAchievementsGroupTag: this.currentAchievementsGroupTag,
-                currentAchievementsGroupName: this.currentAchievementsGroupName,
-                currentAchievementsGroupDescription: this.currentAchievementsGroupDescription,
+                PostNotificationData: "",
 
-                currentPlayerAchievementIndex: this.currentPlayerAchievementIndex,
-                currentPlayerAchievementId: this.currentPlayerAchievementId,
-                currentPlayerAchievementUnlockDate: this.currentPlayerAchievementUnlockDate,
+                providedConsent: false,
 
-                isUnlockAchievementSuccess: this.isUnlockAchievementSuccess,
-                unlockAchievementError: this.unlockAchievementError,
+                TriggerValue: 0,
 
-                unlockedAchievementId: this.unlockedAchievementId,
-                unlockedAchievementTag: this.unlockedAchievementTag,
-                unlockedAchievementName: this.unlockedAchievementName,
-                unlockedAchievementDescription: this.unlockedAchievementDescription,
-                unlockedAchievementIcon: this.unlockedAchievementIcon,
-                unlockedAchievementIconSmall: this.unlockedAchievementIconSmall,
-                unlockedAchievementRare: this.unlockedAchievementRare
+                ObserverPermissionStatus: "",
+                ObserverSubscriptionStatus: "",
+
+                EmailStatus: ""
+            }
+
+            //** Construct 3 Current **//
+            this._C3Current = {
+
+                subscribed: false,
+                userSubscriptionSetting: false,
+                userID: "",
+                pushToken: "",
+
+                status: 0, // 0, 1, 2
+                state: 0,  // 1, 2 // Purposely just set to 0.
+                hasPrompted: false,
+                provisional: false,
+
+                recentTriggerKey: "",
+
+                newEmail: "",
+                newEmailUserID: "",
+                oldEmail: "",
+                oldEmailUserID: "",
+
+                firstClick: false,
+                closesMessage: false,
+                clickURL: "",
+                clickName: "",
+
+                SendTagsStack: {},
+                DeleteTagsStack: [],
+
+                AddTriggersStack: {},
+                RemoveTriggersStack: []
             };
-        }
 
-        LoadFromJson(o) {
-            this.leaderboard = o.leaderboard;
-            this.currentLeaderboardIndex = o.currentLeaderboardIndex;
-            this.currentLeaderboardPlayer = o.currentLeaderboardPlayer;
-            this.lastLeaderboardTag = o.lastLeaderboardTag;
-            this.lastLeaderboardPlayerRatingTag = o.lastLeaderboardPlayerRatingTag;
-            this.leaderboardPlayerPosition = o.leaderboardPlayerPosition || 0;
+            //** System References **//
+            const self = this;
 
-            this.currentPlayerFieldKey = o.currentPlayerFieldKey;
-            this.currentPlayerFieldType = o.currentPlayerFieldType;
-            this.currentPlayerFieldName = o.currentPlayerFieldName;
-            this.currentPlayerFieldValue = o.currentPlayerFieldValue;
+            //** Construct 3 Trigger **//
+            this._C3Trigger = {
 
-            this.currentPlayerFieldVariantValue = o.currentPlayerFieldVariantValue;
-            this.currentPlayerFieldVariantName = o.currentPlayerFieldVariantName;
-            this.currentPlayerFieldVariantIndex = o.currentPlayerFieldVariantIndex;
-
-            this.isLastAdSuccess = o.isLastAdSuccess;
-            this.isLastShareSuccess = o.isLastShareSuccess;
-            this.isLastCommunityJoinSuccess = o.isLastCommunityJoinSuccess;
-            this.isReady = o.isReady;
-            this.isPlayerReady = o.isPlayerReady;
-
-            this.achievements = o.achievements || [];
-            this.achievementsGroups = o.achievementsGroups || [];
-            this.playerAchievements = o.playerAchievements || [];
-
-            this.currentAchievementIndex = o.currentAchievementIndex || 0;
-            this.currentAchievementId = o.currentAchievementId || 0;
-            this.currentAchievementTag = o.currentAchievementTag || '';
-            this.currentAchievementName = o.currentAchievementName || '';
-            this.currentAchievementDescription = o.currentAchievementDescription || '';
-            this.currentAchievementIcon = o.currentAchievementIcon || '';
-            this.currentAchievementIconSmall = o.currentAchievementIconSmall || '';
-            this.currentAchievementRare = o.currentAchievementRare || 'COMMON';
-            this.currentAchievementUnlocked = o.currentAchievementUnlocked || false;
-
-            this.currentAchievementsGroupIndex = o.currentAchievementsGroupIndex || 0;
-            this.currentAchievementsGroupId = o.currentAchievementsGroupId || 0;
-            this.currentAchievementsGroupTag = o.currentAchievementsGroupTag || '';
-            this.currentAchievementsGroupName = o.currentAchievementsGroupName || '';
-            this.currentAchievementsGroupDescription = o.currentAchievementsGroupDescription || '';
-
-            this.currentPlayerAchievementIndex = o.currentPlayerAchievementIndex || 0;
-            this.currentPlayerAchievementId = o.currentPlayerAchievementId || 0;
-            this.currentPlayerAchievementUnlockDate = o.currentPlayerAchievementUnlockDate || '';
-
-            this.isUnlockAchievementSuccess = o.isUnlockAchievementSuccess || false;
-            this.unlockAchievementError = o.unlockAchievementError || '';
-
-            this.unlockedAchievementId = o.unlockedAchievementId || 0;
-            this.unlockedAchievementTag = o.unlockedAchievementTag || '';
-            this.unlockedAchievementName = o.unlockedAchievementName || '';
-            this.unlockedAchievementDescription = o.unlockedAchievementDescription || '';
-            this.unlockedAchievementIcon = o.unlockedAchievementIcon || '';
-            this.unlockedAchievementIconSmall = o.unlockedAchievementIconSmall || '';
-            this.unlockedAchievementRare = o.unlockedAchievementRare || 'COMMON';
-        }
-
-        GetDebuggerProperties() {
-            if (!this.isPlayerReady) {
-                return [];
-            }
-            return [
+                HandlerNotificationReceived:(data) =>
                 {
-                    title: 'GS - Base',
-                    properties: [
-                        {
-                            name: 'Language',
-                            value: this.gs.language
-                        },
-                        {
-                            name: 'Avatar Generator',
-                            value: this.gs.avatarGenerator
-                        },
-                        {
-                            name: 'Platform',
-                            value: this.gs.platform.type
-                        }
-                    ]
+                    const notificationData = JSON.stringify(data);
+                    self._C3Memory.notificationReceived = notificationData;
+
+                    self.Debug(true, "On Notification Received", "The JSON data string below is retrievable through the expression \"NotificationReceivedData\".", data);
+
+                    const trigger = self.Conditions().OnNotificationReceived;
+                    self.Trigger(trigger);
                 },
+                HandlerNotificationOpened: (data) =>
                 {
-                    title: 'GS - Ads',
-                    properties: [
-                        {
-                            name: 'Last Ad Success',
-                            value: this.isLastAdSuccess
-                        },
-                        {
-                            name: 'Adblock Enabled',
-                            value: this.gs.ads.isAdblockEnabled
-                        }
-                    ]
+                    const notificationData = JSON.stringify(data);
+                    self._C3Memory.notificationOpened = notificationData;
+
+                    self.Debug(true, "On Notification Opened", "The JSON data string below is retrievable through the expression \"NotificationOpenedData\".", data);
+
+                    const trigger = self.Conditions().OnNotificationOpened;
+                    self.Trigger(trigger);
                 },
+
+                IOSPermissionUserResponse: (accepted) =>
                 {
-                    title: 'GS - Leaderboards',
-                    properties: [
-                        {
-                            name: 'Player Position',
-                            value: this.leaderboardPlayerPosition
-                        }
-                    ]
+                    self._C3Memory.iOSPermission = accepted;
+
+                    self.Debug(accepted, "On Prompt Push Notification Permission", "The user responded \"(" + accepted + "\") to allow push notifications from a prompt dialog. Use the condition \"Is Consent Provided\" to return the boolean response.", undefined);
+
+                    const trigger = self.Conditions().OnPromptPushNotificationPermission;
+                    self.Trigger(trigger);
                 },
+
+                GetPermissionSubscriptionState: (data) =>
                 {
-                    title: 'GS - Player',
-                    properties: [
-                        {
-                            name: 'ID',
-                            value: this.gs.player.id
-                        },
-                        {
-                            name: 'Logged In By Platform',
-                            value: this.gs.player.isLoggedInByPlatform
-                        },
-                        {
-                            name: 'Is Stub',
-                            value: this.gs.player.isStub
-                        },
-                        ...this.gs.player.fields.map((f) => ({
-                            name: this.gs.player.getFieldName(f.key),
-                            value: this.gs.player.get(f.key),
-                            onedit: (v) => this.CallAction(this.actions.PlayerSet, f.key, v)
-                        }))
-                    ]
+                    const permission = data["permissionStatus"];
+                    const subscription = data["subscriptionStatus"];
+
+                    const status = permission["status"];
+                    const state = permission["state"];
+                    const hasPrompted = permission["hasPrompted"];
+                    const provisional = permission["provisional"];
+
+                    const subscribed = subscription["subscribed"];
+                    const userSubscriptionSetting = subscription["userSubscriptionSetting"];
+                    const userID = subscription["userId"];
+                    const pushToken = subscription["pushToken"];
+
+                    self._C3Current.status = status;
+                    self._C3Current.state = state;
+                    self._C3Current.hasPrompted = hasPrompted;
+                    self._C3Current.provisional = provisional;                    
+
+                    self._C3Current.subscribed = subscribed;
+                    self._C3Current.userSubscriptionSetting = userSubscriptionSetting;
+                    self._C3Current.userID = userID;
+                    self._C3Current.pushToken = pushToken;
+
+                    const permissionSubscriptionData = JSON.stringify(data);
+
+                    const permissionData = JSON.stringify(permission);                    
+                    const subscriptionData = JSON.stringify(subscription);
+
+                    self._C3Memory.PermissionSubscriptionStatus = permissionSubscriptionData;
+
+                    self._C3Memory.PermissionStatus = permissionData;                    
+                    self._C3Memory.SubscriptionStatus = subscriptionData;
+
+                    self.Debug(true, "On Get Permission Subscription State", "The \"Status\", \"Status : Permission Status\" and \"Status : Subscription Status\" expression categories were updated.", data);                    
+
+                    const trigger = self.Conditions().OnGetPermissionSubscriptionState;
+                    self.Trigger(trigger);
                 },
+
+                GetTags: (data) =>
                 {
-                    title: 'GS - Achievements Loop',
-                    properties: [
-                        {
-                            name: 'Current Achievement Index',
-                            value: this.currentAchievementIndex
-                        },
-                        {
-                            name: 'Current Achievement ID',
-                            value: this.currentAchievementId
-                        },
-                        {
-                            name: 'Current Achievement Tag',
-                            value: this.currentAchievementTag
-                        },
-                        {
-                            name: 'Current Achievement Name',
-                            value: this.currentAchievementName
-                        },
-                        {
-                            name: 'Current Achievement Description',
-                            value: this.currentAchievementDescription
-                        },
-                        {
-                            name: 'Current Achievement Icon',
-                            value: this.currentAchievementIcon
-                        },
-                        {
-                            name: 'Current Achievement Icon Small',
-                            value: this.currentAchievementIconSmall
-                        },
-                        {
-                            name: 'Current Achievement Icon',
-                            value: this.currentAchievementIcon
-                        },
-                        {
-                            name: 'Current Achievement Rare',
-                            value: this.currentAchievementRare
-                        },
-                        {
-                            name: 'Current Achievement Unlocked',
-                            value: this.currentAchievementUnlocked
-                        }
-                    ]
+                    const tags = JSON.stringify(data);
+                    
+                    self._C3Memory.Tags = tags;
+
+                    self.Debug(true, "On Get Tags", "The JSON data string below is retrievable through the expression \"Tags\".", data);
+
+                    const trigger = self.Conditions().OnGetTags;
+                    self.Trigger(trigger);                    
                 },
+
+                PostNotification_Success: (response) =>
                 {
-                    title: 'GS - Achievements Groups Loop',
-                    properties: [
-                        {
-                            name: 'Current Achievements Group Index',
-                            value: this.currentAchievementsGroupIndex
-                        },
-                        {
-                            name: 'Current Achievements Group ID',
-                            value: this.currentAchievementsGroupId
-                        },
-                        {
-                            name: 'Current Achievements Group Tag',
-                            value: this.currentAchievementsGroupTag
-                        },
-                        {
-                            name: 'Current Achievements Group Name',
-                            value: this.currentAchievementsGroupName
-                        },
-                        {
-                            name: 'Current Achievements Group Description',
-                            value: this.currentAchievementsGroupDescription
-                        }
-                    ]
+                    const data = JSON.stringify(response);
+                    
+                    self._C3Memory.PostNotificationData = data;
+
+                    self.Debug(true, "On Post Notification Success", "The JSON data string below is retrievable through the expression \"PostNotificationData\".", response);
+
+                    const trigger = self.Conditions().OnPostNotificationSuccess;
+                    self.Trigger(trigger);             
                 },
+
+                PostNotification_Failure: (response) =>
                 {
-                    title: 'GS - Player Achievements Loop',
-                    properties: [
-                        {
-                            name: 'Current Player Achievement Index',
-                            value: this.currentPlayerAchievementIndex
-                        },
-                        {
-                            name: 'Current Player Achievement ID',
-                            value: this.currentPlayerAchievementId
-                        },
-                        {
-                            name: 'Current Player Achievement Unlock Date',
-                            value: this.currentPlayerAchievementUnlockDate
-                        }
-                    ]
+                    const data = JSON.stringify(response);
+                    
+                    self._C3Memory.PostNotificationData = data;
+
+                    self.Debug(false, "On Post Notification Failure", "The JSON data string of the (error) below is retrievable through the expression \"PostNotificationData\".", response);
+
+                    const trigger = self.Conditions().OnPostNotificationFailure;
+                    self.Trigger(trigger);             
                 },
+
+                UserProvidedConsent: (providedConsent) =>
                 {
-                    title: 'GS - Unlocked Achievement',
-                    properties: [
-                        {
-                            name: 'Is unlock successful',
-                            value: this.isUnlockAchievementSuccess
-                        },
-                        {
-                            name: 'Unlock error',
-                            value: this.unlockAchievementError
-                        },
-                        {
-                            name: 'Unlocked Achievement ID',
-                            value: this.unlockedAchievementId
-                        },
-                        {
-                            name: 'Unlocked Achievement Tag',
-                            value: this.unlockedAchievementTag
-                        },
-                        {
-                            name: 'Unlocked Achievement Name',
-                            value: this.unlockedAchievementName
-                        },
-                        {
-                            name: 'Unlocked Achievement Description',
-                            value: this.unlockedAchievementDescription
-                        },
-                        {
-                            name: 'Unlocked Achievement Icon',
-                            value: this.unlockedAchievementIcon
-                        },
-                        {
-                            name: 'Unlocked Achievement Icon Small',
-                            value: this.unlockedAchievementIconSmall
-                        },
-                        {
-                            name: 'Unlocked Achievement Icon',
-                            value: this.unlockedAchievementIcon
-                        },
-                        {
-                            name: 'Unlocked Achievement Rare',
-                            value: this.unlockedAchievementRare
-                        }
-                    ]
+                    self._C3Memory.providedConsent = providedConsent;
+
+                    self.Debug(providedConsent, "On Check If User Provided Consent", "User Provided Privacy Consent : (" + providedConsent + ").", undefined);
+
+                    const trigger = self.Conditions().OnCheckIfUserProvidedConsent;
+                    self.Trigger(trigger);
+                },
+
+                GetTriggerValue: (value) =>
+                {
+                    self._C3Memory.TriggerValue = value;
+
+                    self.Debug(true, "On Get Trigger Value From Key", "(Key:" + self._C3Current.recentTriggerKey + ", Value: " + 
+                    self._C3Memory.TriggerValue + "). The trigger value is retrievable using the expression \"TriggerValue\".", undefined);
+
+                    const trigger = self.Conditions().OnGetTriggerValue;
+                    self.Trigger(trigger);                      
+                },
+
+                SetEmail_Success: () =>
+                {
+                    self.Debug(true, "On Set Email Success", undefined, undefined);
+
+                    const trigger = self.Conditions().OnSetEmailSuccess;
+                    self.Trigger(trigger);
+                },
+
+                SetEmail_Failure: (error) =>
+                {
+                    self.Debug(false, "On Set Email Failure", "The error data in JSON.", error);
+
+                    const trigger = self.Conditions().OnSetEmailFailure;
+                    self.Trigger(trigger);
+                },
+
+                LogoutEmail_Success: (response) =>
+                {
+                    self.Debug(true, "On Logout Email Success", "The response from the server, in JSON.", response);
+
+                    const trigger = self.Conditions().OnLogoutEmailSuccess;
+                    self.Trigger(trigger);
+                },
+
+                LogoutEmail_Failure: (error) =>
+                {
+                    self.Debug(false, "On Logout Email Failed", "The response from the server, in JSON.", error);
+
+                    const trigger = self.Conditions().OnLogoutEmailFailure;
+                    self.Trigger(trigger);
+                },
+
+                PermissionStatusChanged: (data) =>
+                {
+                    const permission = data["permissionStatus"]["to"];
+
+                    const status = permission["status"];
+                    const state = permission["state"];
+                    const hasPrompted = permission["hasPrompted"];
+                    const provisional = permission["provisional"];
+
+                    self._C3Current.status = status;
+                    self._C3Current.state = state;
+                    self._C3Current.hasPrompted = hasPrompted;
+                    self._C3Current.provisional = provisional;                    
+
+                    const observerData = JSON.stringify(data);
+                    const permissionData = JSON.stringify(permission);        
+
+                    self._C3Memory.ObserverPermissionStatus = observerData;
+                    self._C3Memory.PermissionStatus = permissionData;                    
+
+                    self.Debug(true, "On Notification Permission State Changed", "The \"Status : Permission Status\" expression category and both the \"PermissionStatus\" and \"ObserverPermissionStatus\" expressions were updated.", data);                    
+
+                    const trigger = self.Conditions().OnPermissionStatusChanged;
+                    self.Trigger(trigger);                    
+                },
+
+                SubscriptionStatusChanged: (data) =>
+                {
+                    const subscription = data["subscriptionStatus"]["to"];
+
+                    const subscribed = subscription["subscribed"];
+                    const userSubscriptionSetting = subscription["userSubscriptionSetting"];
+                    const userID = subscription["userId"];
+                    const pushToken = subscription["pushToken"];      
+
+                    self._C3Current.subscribed = subscribed;
+                    self._C3Current.userSubscriptionSetting = userSubscriptionSetting;
+                    self._C3Current.userID = userID;
+                    self._C3Current.pushToken = pushToken;
+
+                    const observerData = JSON.stringify(data); 
+                    const subscriptionData = JSON.stringify(subscription);
+       
+                    self._C3Memory.ObserverSubscriptionStatus = observerData;
+                    self._C3Memory.SubscriptionStatus = subscriptionData;
+                   
+                    self.Debug(true, "On Notification Subscription State Changed", "The \"Status : Subscription Status\" expression category and both the \"SubscriptionStatus\" and \"ObserverSubscriptionStatus\" expressions were updated.", data);
+
+                    const trigger = self.Conditions().OnSubscriptionStatusChanged;
+                    self.Trigger(trigger);
+                },
+
+                EmailStatusChanged: (data) =>
+                {
+                    const isOldEmailExisting = typeof data["from"]["emailAddress"] === "undefined" ? false : true;
+                    const isOldUserIDExisting = typeof data["from"]["emailUserId"] === "undefined" ? false : true;
+
+                    self._C3Current.newEmail = data["to"]["emailAddress"];
+                    self._C3Current.newEmailUserID = data["to"]["emailUserId"];
+                    self._C3Current.oldEmail = isOldEmailExisting === true ? data["from"]["emailAddress"] : "";
+                    self._C3Current.oldEmailUserID = isOldUserIDExisting === true ? data["from"]["emailUserId"] : "";
+
+                    const emailStatus = JSON.stringify(data);
+                    self._C3Memory.EmailStatus = emailStatus;
+
+                    self.Debug(true, "On Email Status Changed", "The \"Email : Status\" expression category was updated.", data);
+
+                    const trigger = self.Conditions().OnEmailStatusChanged;
+                    self.Trigger(trigger);
+                },
+
+                InAppMessageClicked: (data) =>
+                {
+                    self._C3Current.firstClick = data["first_click"];
+                    self._C3Current.closesMessage = data["closes_message"];
+                    self._C3Current.clickURL = data["click_url"];
+                    self._C3Current.clickName = data["click_name"];
+
+                    self.Debug(true, "On In-App Message Clicked", "The \"In-App - MISC\" expression category was updated.", data);
+
+                    const trigger = self.Conditions().OnInAppMessageClicked;
+                    self.Trigger(trigger);
                 }
-            ];
+            };
+
+			//** Construct 3 DOM Handlers **//
+            this.AddDOMMessageHandlers([
+                ["start-sdk", e => this._StartSDK(...e)],
+                
+				["handler-notification-received", e => this._C3Trigger.HandlerNotificationReceived(...e)],
+				["handler-notification-opened", e => this._C3Trigger.HandlerNotificationOpened(...e)],
+				["ios-permission-user-response", e => this._C3Trigger.IOSPermissionUserResponse(...e)],
+                ["get-permission-subscription-state", e => this._C3Trigger.GetPermissionSubscriptionState(...e)],
+                ["get-tags", e => this._C3Trigger.GetTags(...e)],
+				["post-notification-success", e => this._C3Trigger.PostNotification_Success(...e)],
+				["post-notification-failure", e => this._C3Trigger.PostNotification_Failure(...e)],
+				["user-provided-consent", e => this._C3Trigger.UserProvidedConsent(...e)],
+				["get-trigger-value", e => this._C3Trigger.GetTriggerValue(...e)],
+				["set-email-success", e => this._C3Trigger.SetEmail_Success(...e)],
+				["set-email-failure", e => this._C3Trigger.SetEmail_Failure(...e)],
+				["logout-email-success", e => this._C3Trigger.LogoutEmail_Success(...e)],
+				["logout-email-failure", e => this._C3Trigger.LogoutEmail_Failure(...e)],
+				["permission-status-changed", e => this._C3Trigger.PermissionStatusChanged(...e)],
+				["subscription-status-changed", e => this._C3Trigger.SubscriptionStatusChanged(...e)],
+				["email-status-changed", e => this._C3Trigger.EmailStatusChanged(...e)],
+				["in-app-message-clicked", e => this._C3Trigger.InAppMessageClicked(...e)]
+            ]);
+        
+            //** Start OneSignal SDK **//
+            this.PostToDOM("start-sdk", [this._appID, this._inFocusDisplaying, this._iosAutoPrompt, this._iosInAppLaunchURL,
+                this._logLevel, this._visualLevel, this._requiresConsent, this._locationShared, this._permissionObserver,
+                this._subscriptionObserver,this._emailObserver]);
         }
+
+        ///////////////////////////////////////
+		// DOM Methods
+        _StartSDK()
+        {
+            this._isMobile = true;
+        }
+
+		///////////////////////////////////////
+		// Action Methods (DOM)
+        _ProvideUserConsent(consent)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("provide-user-consent", [consent]);
+        }
+
+        _PromptForPushNotificationsPermission() // Requirement: kOSSettingsKeyAutoPrompt = false;
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("prompt-for-push-notification-permission", []);
+        }
+
+        _GetPermissionSubscriptionState()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("get-permission-subscription-state", []);
+        }
+
+        _GetTags()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("get-tags", []);
+        }
+
+        _SendTag(key, value)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("send-tag", [key, value]);
+        }
+
+        // _PlanSendTag(key, value)
+
+        _SendTags()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+
+            const stack = this._C3Current.SendTagsStack;
+            this.PostToDOM("send-tags", [stack]);
+
+            this._C3Current.SendTagsStack = {};
+        }        
+
+        _DeleteTag(key)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("delete-tag", [key]);
+        }
+
+        // _PlanDeleteTag(key)
+
+        _DeleteTags()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            
+            const stack = this._C3Current.DeleteTagsStack;
+            this.PostToDOM("delete-tags", [stack]);
+
+            this._C3Current.DeleteTagsStack = [];
+        }
+
+        _PromptLocation()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("prompt-location", []);
+        }
+
+        _PostNotification(paramJSON)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("post-notification", [paramJSON]);
+        }
+
+        _ClearNotifications()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("clear-notifications", []);
+        }
+
+        _SetSubscription(toggle)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("set-subscription", [toggle]);
+        }
+
+        _CheckIfUserProvidedConsent()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("check-if-user-provided-consent", []);
+        }       
+
+        _AddTrigger(key, value)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("add-trigger", [key, value]);
+        }
+
+        // _PlanAddTrigger(key, value)
+
+        _AddTriggers()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+
+            const stack = this._C3Current.AddTriggersStack;
+            this.PostToDOM("add-triggers", [stack]);
+
+            this._C3Current.AddTriggersStack = {};
+        }
+
+        _RemoveTrigger(key)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("remove-trigger", [key]);
+        }
+
+        // _PlanRemoveTrigger(key)
+
+        _RemoveTriggers()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+
+            const stack = this._C3Current.RemoveTriggersStack;
+            this.PostToDOM("remove-triggers", [stack]);
+
+            this._C3Current.RemoveTriggersStack = [];
+        }
+
+        _GetTriggerValue(key)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("get-trigger-value", [key]);
+        }
+
+        _PauseInAppMessages(toggle)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("pause-in-app-messages", [toggle]);
+        }
+
+        _SetEmail(emailAddress, emailAuthToken)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("set-email", [emailAddress, emailAuthToken]);
+        }
+
+        _LogoutEmail()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("logout-email", []);
+        }
+
+        _SetExternalUserID(userID)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("set-external-user-id", [userID]);
+        }
+
+        _RemoveExternalUserID()
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("remove-external-user-id", []);
+        }
+
+        _EnableVibrate(toggle)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("enable-vibrate", [toggle]);
+        }
+
+        _EnableSound(toggle)
+        {
+            if (!this.IsDependencyCleared()) { return; }
+            this.PostToDOM("enable-sound", [toggle]);
+        }
+
+        ///////////////////////////////////////
+        // Action Methods (Main)
+        
+        _PlanSendTag(key, value)
+        {
+            this._C3Current.SendTagsStack[key] = value;
+        }
+
+        _PlanDeleteTag(key)
+        {
+            this._C3Current.DeleteTagsStack.push(key);
+        }
+
+        _PlanAddTrigger(key, value)
+        {
+            this._C3Current.AddTriggersStack[key] = value;
+        }
+
+        _PlanRemoveTrigger(key)
+        {
+            this._C3Current.RemoveTriggersStack.push(key);
+        }
+
+        ///////////////////////////////////////
+		// Utility Methods
+        Conditions()
+        {
+            return C3.Plugins.CV_MobileOneSignal.Cnds;
+        }
+
+        Debug(success = true, title = "", log = "", data = {})
+        {   
+            if (!this._debug) { return; }
+
+            const color = success ? "green" : "red";
+            console.log("%c%s", "color: " + color + "; background: black", title, log, data);
+        }
+
+        IsNull(o)
+        {
+            return (o == null);
+        }
+        
+        ///////////////////////////////////////
+		// Getter Methods
+		IsDependencyCleared ()
+		{
+			return this._isMobile;
+		}
     };
 }
-
 }
 
 {
-'use strict';
+"use strict";
 {
-    function each(runtime, array, cb) {
-        const eventSheetManager = runtime.GetEventSheetManager();
-        const currentEvent = runtime.GetCurrentEvent();
-        const solModifiers = currentEvent.GetSolModifiers();
-        const eventStack = runtime.GetEventStack();
-        const oldFrame = eventStack.GetCurrentStackFrame();
-        const newFrame = eventStack.Push(currentEvent);
+    const C3 = self.C3;
 
-        array.forEach((item, index) => {
-            cb(item, index);
+    C3.Plugins.CV_MobileOneSignal.Cnds = {
+        IsConsentProvided()
+        {
+            return this._C3Memory.providedConsent;
+        },
 
-            eventSheetManager.PushCopySol(solModifiers);
-            currentEvent.Retrigger(oldFrame, newFrame);
-            eventSheetManager.PopSol(solModifiers);
-        });
-
-        eventStack.Pop();
-    }
-
-    C3.Plugins.Eponesh_GameScore.Cnds = {
-        OnPlayerChange() {
+        OnNotificationReceived()
+        {
             return true;
         },
 
-        OnPlayerSyncComplete() {
+        OnNotificationOpened()
+        {
             return true;
         },
 
-        OnPlayerSyncError() {
+        OnPromptPushNotificationPermission(response)
+        {
+            return this._C3Memory.iOSPermission == response;
+        },
+
+        OnCheckIfUserProvidedConsent()
+        {
             return true;
         },
 
-        OnPlayerLoadComplete() {
+        OnGetPermissionSubscriptionState()
+        {
             return true;
         },
 
-        OnPlayerLoadError() {
+        OnSubscriptionStatusChanged()
+        {
             return true;
         },
 
-        OnPlayerLoginComplete() {
+        OnGetTags()
+        {
             return true;
         },
 
-        OnPlayerLoginError() {
+        OnPermissionStatusChanged()
+        {
             return true;
         },
 
-        OnPlayerFetchFieldsComplete() {
+        OnPostNotificationSuccess()
+        {
             return true;
         },
 
-        OnPlayerFetchFieldsError() {
+        OnPostNotificationFailure()
+        {
             return true;
         },
 
-        OnPlayerReady() {
+        OnGetTriggerValue(key)
+        {
+            return key === this._C3Current.recentTriggerKey;
+        },
+
+        OnInAppMessageClicked()
+        {
             return true;
         },
 
-        IsPlayerReady() {
-            return this.isPlayerReady;
-        },
-
-        IsPlayerStub() {
-            return this.gs.player.isStub;
-        },
-
-        IsPlayerLoggedIn() {
-            return this.gs.player.isLoggedIn;
-        },
-
-        PlayerHasKey(key) {
-            return this.gs.player.has(key);
-        },
-
-        PlayerFieldIsEnum(key) {
-            return this.gs.player.getField(key).variants.length;
-        },
-
-        PlayerCompareScore(comparison, value) {
-            return this.mappers.compare[comparison](this.gs.player.score, value);
-        },
-
-        PlayerCompare(key, comparison, value) {
-            return this.mappers.compare[comparison](this.gs.player.get(key), value);
-        },
-
-        PlayerEachField() {
-            each(this._runtime, this.gs.player.fields, (field) => {
-                this.currentPlayerFieldKey = field.key;
-                this.currentPlayerFieldType = field.type;
-                this.currentPlayerFieldName = field.name;
-                this.currentPlayerFieldValue = this.gs.player.get(field.key);
-            });
-
-            return false;
-        },
-
-        PlayerEachFieldVariant(key) {
-            each(this._runtime, this.gs.player.getField(key).variants, (variant, index) => {
-                this.currentPlayerFieldVariantValue = variant.value;
-                this.currentPlayerFieldVariantName = variant.name;
-                this.currentPlayerFieldVariantIndex = index;
-            });
-
-            return false;
-        },
-
-        OnLeaderboardOpen() {
+        OnSetEmailSuccess()
+        {
             return true;
         },
 
-        OnLeaderboardFetch(tag) {
-            return this.lastLeaderboardTag === tag;
-        },
-
-        OnLeaderboardAnyFetch() {
+        OnSetEmailFailure()
+        {
             return true;
         },
 
-        OnLeaderboardFetchError(tag) {
-            return this.lastLeaderboardTag === tag;
-        },
-
-        OnLeaderboardAnyFetchError() {
+        OnLogoutEmailSuccess()
+        {
             return true;
         },
 
-        OnLeaderboardFetchPlayer(tag) {
-            return this.lastLeaderboardPlayerRatingTag === tag;
-        },
-
-        OnLeaderboardAnyFetchPlayer() {
+        OnLogoutEmailFailure()
+        {
             return true;
         },
 
-        OnLeaderboardFetchPlayerError(tag) {
-            return this.lastLeaderboardPlayerRatingTag === tag;
-        },
-
-        OnLeaderboardAnyFetchPlayerError() {
-            return true;
-        },
-
-        LeaderboardEachPlayer() {
-            each(this._runtime, this.leaderboard, (player, index) => {
-                this.currentLeaderboardIndex = index;
-                this.currentLeaderboardPlayer = player;
-            });
-
-            return false;
-        },
-
-        OnAchievementsOpen() {
-            return true;
-        },
-
-        OnAchievementsClose() {
-            return true;
-        },
-
-        OnAchievementsFetch() {
-            return true;
-        },
-
-        OnAchievementsFetchError() {
-            return true;
-        },
-
-        OnAchievementsUnlock(idOrTag) {
-            const id = parseInt(idOrTag, 10) || 0;
-            return this.unlockedAchievementTag === idOrTag || this.unlockedAchievementId === id;
-        },
-
-        OnAchievementsAnyUnlock() {
-            return true;
-        },
-
-        OnAchievementsAnyUnlockError() {
-            return true;
-        },
-
-        AchievementsEachAchievement() {
-            each(this._runtime, this.achievements, (achievement, index) => {
-                this.currentAchievementIndex = index;
-                this.currentAchievementId = achievement.id;
-                this.currentAchievementTag = achievement.tag;
-                this.currentAchievementName = achievement.name;
-                this.currentAchievementDescription = achievement.description;
-                this.currentAchievementIcon = achievement.icon;
-                this.currentAchievementIconSmall = achievement.iconSmall;
-                this.currentAchievementRare = achievement.rare;
-                this.currentAchievementUnlocked = this.playerAchievements.some(
-                    (a) => a.achievementId === achievement.id
-                );
-            });
-
-            return false;
-        },
-
-        AchievementsEachAchievementInGroup(idOrTag) {
-            const id = parseInt(idOrTag, 10) || 0;
-            const group = this.achievementsGroups.find((ag) => ag.tag === idOrTag || ag.id === id);
-            const achievements = group
-                ? group.achievements.reduce((list, aId) => {
-                      const achievement = this.achievements.find((a) => a.id === aId);
-                      if (achievement) {
-                          list.push(achievement);
-                      }
-                      return list;
-                  }, [])
-                : [];
-
-            each(this._runtime, achievements, (achievement, index) => {
-                this.currentAchievementIndex = index;
-                this.currentAchievementId = achievement.id;
-                this.currentAchievementTag = achievement.tag;
-                this.currentAchievementName = achievement.name;
-                this.currentAchievementDescription = achievement.description;
-                this.currentAchievementIcon = achievement.icon;
-                this.currentAchievementIconSmall = achievement.iconSmall;
-                this.currentAchievementRare = achievement.rare;
-                this.currentAchievementUnlocked = this.playerAchievements.some(
-                    (a) => a.achievementId === achievement.id
-                );
-            });
-
-            return false;
-        },
-
-        AchievementsEachAchievementsGroup() {
-            each(this._runtime, this.achievementsGroups, (achievementsGroup, index) => {
-                this.currentAchievementsGroupIndex = index;
-                this.currentAchievementsGroupId = achievementsGroup.id;
-                this.currentAchievementsGroupTag = achievementsGroup.tag;
-                this.currentAchievementsGroupName = achievementsGroup.name;
-                this.currentAchievementsGroupDescription = achievementsGroup.description;
-            });
-
-            return false;
-        },
-
-        AchievementsEachPlayerAchievements() {
-            each(this._runtime, this.playerAchievements, (playerAchievement, index) => {
-                this.currentPlayerAchievementIndex = index;
-                this.currentPlayerAchievementId = playerAchievement.achievementId;
-                this.currentPlayerAchievementUnlockDate = playerAchievement.createdAt;
-            });
-
-            return false;
-        },
-
-        IsAchievementsCurAchievementUnlocked() {
-            return this.currentAchievementUnlocked;
-        },
-
-        IsAchievementsUnlockSuccessful() {
-            return this.isUnlockAchievementSuccess;
-        },
-
-        AchievementsIsUnlocked(idOrTag) {
-            return this.gs.achievements.has(idOrTag);
-        },
-
-        OnFullscreenOpen() {
-            return true;
-        },
-
-        OnFullscreenClose() {
-            return true;
-        },
-
-        OnFullscreenChange() {
-            return true;
-        },
-
-        IsFullscreenMode() {
-            return this.gs.fullscreen.isEnabled;
-        },
-
-        OnAdsStart() {
-            return true;
-        },
-
-        OnAdsClose() {
-            return true;
-        },
-
-        OnAdsFullscreenStart() {
-            return true;
-        },
-
-        OnAdsFullscreenClose() {
-            return true;
-        },
-
-        OnAdsPreloaderStart() {
-            return true;
-        },
-
-        OnAdsPreloaderClose() {
-            return true;
-        },
-
-        OnAdsRewardedStart() {
-            return true;
-        },
-
-        OnAdsRewardedClose() {
-            return true;
-        },
-
-        OnAdsRewardedReward() {
-            return true;
-        },
-
-        OnAdsStickyStart() {
-            return true;
-        },
-
-        OnAdsStickyClose() {
-            return true;
-        },
-
-        OnAdsStickyRefresh() {
-            return true;
-        },
-
-        OnAdsStickyRender() {
-            return true;
-        },
-
-        IsAdsFullscreenAvailable() {
-            return this.gs.ads.isFullscreenAvailable;
-        },
-
-        IsAdsRewardedAvailable() {
-            return this.gs.ads.isRewardedAvailable;
-        },
-
-        IsAdsPreloaderAvailable() {
-            return this.gs.ads.isPreloaderAvailable;
-        },
-
-        IsAdsStickyAvailable() {
-            return this.gs.ads.isStickyAvailable;
-        },
-
-        IsAdsFullscreenPlaying() {
-            return this.gs.ads.isFullscreenPlaying;
-        },
-
-        IsAdsRewardedPlaying() {
-            return this.gs.ads.isRewardedPlaying;
-        },
-
-        IsAdsPreloaderPlaying() {
-            return this.gs.ads.isPreloaderPlaying;
-        },
-
-        IsAdsStickyPlaying() {
-            return this.gs.ads.isStickyPlaying;
-        },
-
-        IsAdsAdblockEnabled() {
-            return this.gs.ads.isAdblockEnabled;
-        },
-
-        IsAdsLastAdSuccess() {
-            return Boolean(this.isLastAdSuccess);
-        },
-
-        // gs
-        OnChangeLanguage() {
-            return true;
-        },
-
-        OnChangeAvatarGenerator() {
-            return true;
-        },
-
-        OnOverlayReady() {
-            return true;
-        },
-
-        IsDev() {
-            return this.gs.isDev;
-        },
-
-        Language(language) {
-            return this.gs.language === this.mappers.language[language];
-        },
-
-        // platform
-        HasPlatformIntegratedAuth() {
-            return this.gs.platform.hasIntegratedAuth;
-        },
-
-        PlatformType(type) {
-            return this.gs.platform.type === this.mappers.platform[type];
-        },
-
-        IsExternalLinksAllowedOnPlatform() {
-            return this.gs.platform.isExternalLinksAllowed;
-        },
-
-        // socials
-        OnSocialsShare() {
-            return true;
-        },
-
-        OnSocialsPost() {
-            return true;
-        },
-
-        OnSocialsInvite() {
-            return true;
-        },
-
-        OnSocialsJoinCommunity() {
-            return true;
-        },
-
-        IsSocialsLastShareSuccess() {
-            return this.isLastShareSuccess;
-        },
-
-        IsSocialsLastCommunityJoinSuccess() {
-            return this.isLastCommunityJoinSuccess;
-        },
-
-        IsSocialsSupportsNativeShare() {
-            return this.gs.socials.isSupportsNativeShare;
-        },
-
-        IsSocialsSupportsNativePosts() {
-            return this.gs.socials.isSupportsNativePosts;
-        },
-
-        IsSocialsSupportsNativeInvite() {
-            return this.gs.socials.isSupportsNativeInvite;
-        },
-
-        IsSocialsSupportsNativeCommunityJoin() {
-            return this.gs.socials.isSupportsNativeCommunityJoin;
-        },
-
-        OnLoadJsonError() {
+        OnEmailStatusChanged()
+        {
             return true;
         }
     };
 }
-
 }
 
 {
-'use strict';
+"use strict";
 {
-    C3.Plugins.Eponesh_GameScore.Acts = {
-        PlayerSetName(name) {
-            this.gs.player.name = name;
+    const C3 = self.C3;
+
+    C3.Plugins.CV_MobileOneSignal.Acts = {
+        ProvideUserConsent(consent)
+        {
+            this._ProvideUserConsent(consent);
         },
 
-        PlayerSetAvatar(src) {
-            this.gs.player.avatar = src;
+        PromptForPushNotificationsPermission()
+        {
+            this._PromptForPushNotificationsPermission();
         },
 
-        PlayerSetScore(score) {
-            this.gs.player.score = score;
+        GetPermissionSubscriptionState()
+        {
+            this._GetPermissionSubscriptionState();
         },
 
-        PlayerAddScore(score) {
-            this.gs.player.score += score;
+        GetTags()
+        {
+            this._GetTags();
         },
 
-        PlayerSet(key, value) {
-            this.gs.player.set(key, value);
+        SendTag(key, value)
+        {
+            this._SendTag(key, value);
         },
 
-        PlayerSetFlag(key, value) {
-            this.gs.player.set(key, !value);
+        PlanSendTag(key, value)
+        {
+            this._PlanSendTag(key, value);
         },
 
-        PlayerAdd(key, value) {
-            this.gs.player.add(key, value);
+        SendTags()
+        {
+            this._SendTags();
         },
 
-        PlayerToggle(key) {
-            this.gs.player.toggle(key);
+        DeleteTag(key)
+        {
+            this._DeleteTag(key);
+        },                
+
+        PlanDeleteTag(key)
+        {
+            this._PlanDeleteTag(key);
+        },    
+
+        DeleteTags()
+        {
+            this._DeleteTags();
         },
 
-        PlayerReset() {
-            this.gs.player.reset();
+        PromptLocation()
+        {
+            this._PromptLocation();
         },
 
-        PlayerRemove() {
-            this.gs.player.remove();
+        PostNotification(paramJSON)
+        {
+            paramJSON = JSON.parse(paramJSON);
+            this._PostNotification(paramJSON);
         },
 
-        PlayerSync(override = false) {
-            return this.gs.player.sync({ override });
+        ClearNotifications()
+        {
+            this._ClearNotifications();
         },
 
-        PlayerLoad() {
-            return this.gs.player.load();
+        SetSubscription(toggle)
+        {
+            this._SetSubscription(toggle);
         },
 
-        PlayerLogin() {
-            return this.gs.player.login();
+        CheckIfUserProvidedConsent()
+        {
+            this._CheckIfUserProvidedConsent();
+        },        
+
+        AddTrigger(key, value)
+        {
+            this._AddTrigger(key, value);
+        },    
+
+        PlanAddTrigger(key, value)
+        {
+            this._PlanAddTrigger(key, value);
+        },        
+
+        AddTriggers()
+        {
+            this._AddTriggers();
+        },        
+
+        RemoveTrigger(key)
+        {
+            this._RemoveTrigger(key);
         },
 
-        PlayerFetchFields() {
-            return this.gs.player.fetchFields();
+        PlanRemoveTrigger(key)
+        {
+            this._PlanRemoveTrigger(key);
+        },        
+
+        RemoveTriggers()
+        {
+            this._RemoveTriggers();
         },
 
-        PlayerWaitForReady() {
-            return this.awaiters.player.ready;
+        GetTriggerValue(key)
+        {
+            this._GetTriggerValue(key);
         },
 
-        LeaderboardOpen(orderBy, order, limit, withMe, includeFields, displayFields) {
-            return this.gs.leaderboard
-                .open({
-                    id: this.gs.player.id,
-                    orderBy: orderBy
-                        .split(',')
-                        .map((o) => o.trim())
-                        .filter((f) => f),
-                    order: order === 0 ? 'DESC' : 'ASC',
-                    limit,
-                    withMe: this.mappers.withMe[withMe],
-                    includeFields: includeFields
-                        .split(',')
-                        .map((o) => o.trim())
-                        .filter((f) => f),
-                    displayFields: displayFields
-                        .split(',')
-                        .map((o) => o.trim())
-                        .filter((f) => f)
-                })
-                .catch(console.warn);
+        PauseInAppMessages(toggle)
+        {
+            this._PauseInAppMessages(toggle);
         },
 
-        LeaderboardFetch(tag, orderBy, order, limit, withMe, includeFields) {
-            return this.gs.leaderboard
-                .fetch({
-                    id: this.gs.player.id,
-                    orderBy: orderBy
-                        .split(',')
-                        .map((o) => o.trim())
-                        .filter((f) => f),
-                    order: order === 0 ? 'DESC' : 'ASC',
-                    limit,
-                    withMe: this.mappers.withMe[withMe],
-                    includeFields: includeFields
-                        .split(',')
-                        .map((o) => o.trim())
-                        .filter((f) => f)
-                })
-                .then((leaderboardInfo) => {
-                    this.lastLeaderboardTag = tag;
-                    this.leaderboard = leaderboardInfo.players;
-                    this.Trigger(this.conditions.OnLeaderboardFetch);
-                    this.Trigger(this.conditions.OnLeaderboardAnyFetch);
-                })
-                .catch((err) => {
-                    console.warn(err);
-                    this.lastLeaderboardTag = tag;
-                    this.Trigger(this.conditions.OnLeaderboardFetchError);
-                    this.Trigger(this.conditions.OnLeaderboardAnyFetchError);
-                });
+        SetEmail(emailAddress, emailAuthToken)
+        {
+            this._SetEmail(emailAddress, emailAuthToken);
         },
 
-        LeaderboardFetchPlayerRating(tag, orderBy, order) {
-            return this.gs.leaderboard
-                .fetchPlayerRating({
-                    id: this.gs.player.id,
-                    orderBy: orderBy
-                        .split(',')
-                        .map((o) => o.trim())
-                        .filter((f) => f),
-                    order: order === 0 ? 'DESC' : 'ASC'
-                })
-                .then((result) => {
-                    this.lastLeaderboardPlayerRatingTag = tag;
-                    this.leaderboardPlayerPosition = result.player.position;
-                    this.Trigger(this.conditions.OnLeaderboardFetchPlayer);
-                    this.Trigger(this.conditions.OnLeaderboardAnyFetchPlayer);
-                })
-                .catch((err) => {
-                    console.warn(err);
-                    this.lastLeaderboardPlayerRatingTag = tag;
-                    this.Trigger(this.conditions.OnLeaderboardFetchPlayerError);
-                    this.Trigger(this.conditions.OnLeaderboardAnyFetchPlayerError);
-                });
+        LogoutEmail()
+        {
+            this._LogoutEmail();
         },
 
-        AchievementsOpen() {
-            return this.gs.achievements.open().catch(console.warn);
+        SetExternalUserID(userID)
+        {
+            this._SetExternalUserID(userID);
         },
 
-        AchievementsFetch() {
-            return this.gs.achievements
-                .fetch()
-                .then((result) => {
-                    this.achievements = result.achievements;
-                    this.achievementsGroups = result.achievementsGroups;
-                    this.playerAchievements = result.playerAchievements;
-                    this.Trigger(this.conditions.OnAchievementsFetch);
-                })
-                .catch((err) => {
-                    console.warn(err);
-                    this.Trigger(this.conditions.OnAchievementsFetchError);
-                });
+        RemoveExternalUserID()
+        {
+            this._RemoveExternalUserID();
         },
 
-        AchievementsUnlock(idOrTag) {
-            const id = parseInt(idOrTag, 10) || 0;
-            const query = id > 0 ? { id } : { tag: idOrTag };
-            return this.gs.achievements
-                .unlock(query)
-                .then((result) => {
-                    this.isUnlockAchievementSuccess = result.success;
-                    this.unlockAchievementError = result.error || '';
-
-                    const achievement = result.achievement || {};
-                    this.unlockedAchievementId = achievement.id || 0;
-                    this.unlockedAchievementTag = achievement.tag || '';
-                    this.unlockedAchievementName = achievement.name || '';
-                    this.unlockedAchievementDescription = achievement.description || '';
-                    this.unlockedAchievementIcon = achievement.icon || '';
-                    this.unlockedAchievementIconSmall = achievement.iconSmall || '';
-                    this.unlockedAchievementRare = achievement.rare || 'COMMON';
-
-                    if (result.success) {
-                        this.Trigger(this.conditions.OnAchievementsUnlock);
-                        this.Trigger(this.conditions.OnAchievementsAnyUnlock);
-                        return;
-                    }
-
-                    this.Trigger(this.conditions.OnAchievementsAnyUnlockError);
-                })
-                .catch((err) => {
-                    console.warn(err);
-                    this.Trigger(this.conditions.OnAchievementsAnyUnlockError);
-                });
+        EnableVibrate(toggle)
+        {
+            this._EnableVibrate(toggle);
         },
 
-        FullscreenOpen() {
-            return this.gs.fullscreen.open();
-        },
-
-        FullscreenClose() {
-            return this.gs.fullscreen.close();
-        },
-
-        FullscreenToggle() {
-            return this.gs.fullscreen.toggle();
-        },
-
-        AdsShowFullscreen() {
-            return this.gs.ads.showFullscreen();
-        },
-
-        AdsShowRewarded() {
-            return this.gs.ads.showRewardedVideo();
-        },
-
-        AdsShowPreloader() {
-            return this.gs.ads.showPreloader();
-        },
-
-        AdsShowSticky() {
-            return this.gs.ads.showSticky();
-        },
-
-        AdsCloseSticky() {
-            return this.gs.ads.closeSticky();
-        },
-
-        AdsRefreshSticky() {
-            return this.gs.ads.refreshSticky();
-        },
-
-        AnalyticsHit(url) {
-            return this.gs.analytics.hit(url);
-        },
-
-        AnalyticsGoal(event, value) {
-            return this.gs.analytics.goal(event, value);
-        },
-
-        SocialsShare(text, url, image) {
-            return this.gs.socials.share({ text, url, image });
-        },
-
-        SocialsPost(text, url, image) {
-            return this.gs.socials.post({ text, url, image });
-        },
-
-        SocialsInvite(text, url, image) {
-            return this.gs.socials.invite({ text, url, image });
-        },
-
-        SocialsJoinCommunity() {
-            return this.gs.socials.joinCommunity();
-        },
-
-        ChangeLanguage(language) {
-            return this.gs.changeLanguage(this.mappers.language[language]);
-        },
-
-        ChangeLanguageByCode(language = '') {
-            return this.gs.changeLanguage(language.toLowerCase());
-        },
-
-        ChangeAvatarGenerator(generator) {
-            return this.gs.changeAvatarGenerator(this.mappers.avatarGenerator[generator]);
-        },
-
-        LoadOverlay() {
-            return this.gs.loadOverlay();
-        },
-
-        LoadFromJSON(data) {
-            try {
-                const parsed = JSON.parse(data);
-                if (!('isReady' in parsed)) {
-                    throw new Error('Data was corrupted');
-                }
-
-                this.LoadFromJson(parsed);
-            } catch (error) {
-                this.Trigger(this.conditions.OnLoadJsonError);
-            }
+        EnableSound(toggle)
+        {
+            this._EnableSound(toggle);
         }
     };
 }
-
 }
 
 {
-'use strict';
+"use strict";
 {
-    C3.Plugins.Eponesh_GameScore.Exps = {
-        PlayerID() {
-            return this.gs.player.id;
-        },
-
-        PlayerScore() {
-            return this.gs.player.score;
-        },
-
-        PlayerName() {
-            return this.gs.player.name;
-        },
-
-        PlayerAvatar() {
-            return this.gs.player.avatar;
-        },
-
-        PlayerGet(key) {
-            return this.gs.player.get(key);
-        },
-
-        PlayerHas(key) {
-            return this.gs.player.is(key);
-        },
-
-        PlayerFieldName(key) {
-            return this.gs.player.getFieldName(key);
-        },
-
-        PlayerFieldVariantName(key, value) {
-            return this.gs.player.getFieldVariantName(key, value);
-        },
-
-        PlayerGetFieldVariantAt(key, index) {
-            const variant = this.gs.player.getField(key).variants[index];
-            return variant ? variant.value : '';
-        },
-
-        PlayerGetFieldVariantIndex(key, value) {
-            return this.gs.player.getField(key).variants.findIndex((v) => v.value === value);
-        },
-
-        PlayerCurFieldKey() {
-            return this.currentPlayerFieldKey || '';
-        },
-
-        PlayerCurFieldType() {
-            return this.currentPlayerFieldType || '';
-        },
-
-        PlayerCurFieldName() {
-            return this.currentPlayerFieldName || '';
-        },
-
-        PlayerCurFieldValue() {
-            return typeof this.currentPlayerFieldValue === 'string'
-                ? this.currentPlayerFieldValue
-                : Number(this.currentPlayerFieldValue || 0);
-        },
-
-        PlayerCurFieldVariantValue() {
-            return typeof this.currentPlayerFieldVariantValue === 'string'
-                ? this.currentPlayerFieldVariantValue
-                : Number(this.currentPlayerFieldVariantValue || 0);
-        },
-
-        PlayerCurFieldVariantName() {
-            return this.currentPlayerFieldVariantName || '';
-        },
-
-        PlayerCurFieldVariantIndex() {
-            return this.currentPlayerFieldVariantIndex || 0;
-        },
-
-        LeaderboardCurPlayerName() {
-            return this.currentLeaderboardPlayer.name || '';
-        },
-
-        LeaderboardCurPlayerAvatar() {
-            return this.currentLeaderboardPlayer.avatar || '';
-        },
-
-        LeaderboardCurPlayerID() {
-            return this.currentLeaderboardPlayer.id || 0;
-        },
-
-        LeaderboardCurPlayerScore() {
-            return this.currentLeaderboardPlayer.score || 0;
-        },
-
-        LeaderboardCurPlayerPosition() {
-            return this.currentLeaderboardPlayer.position || 0;
-        },
-
-        LeaderboardCurPlayerIndex() {
-            return this.currentLeaderboardIndex || 0;
-        },
-
-        LeaderboardCurPlayerField(key) {
-            return key in this.currentLeaderboardPlayer ? this.currentLeaderboardPlayer[key] : 0;
-        },
-
-        LeaderboardPlayerFieldAt(index, key) {
-            const player = this.leaderboard[index];
-            return player && key in player ? player[key] : 0;
-        },
-
-        LeaderboardPlayerPosition() {
-            return this.leaderboardPlayerPosition || 0;
-        },
-
-        IsFullscreenMode() {
-            return Number(this.gs.fullscreen.isEnabled);
-        },
-
-        Language() {
-            return this.gs.language;
-        },
-
-        AvatarGenerator() {
-            return this.gs.avatarGenerator;
-        },
-
-        PlatformType() {
-            return this.gs.platform.type;
-        },
-
-        AppTitle() {
-            return this.gs.app.title;
-        },
-
-        AppDescription() {
-            return this.gs.app.description;
-        },
-
-        AppImage() {
-            return this.gs.app.image;
-        },
-
-        AppUrl() {
-            return this.gs.app.url;
-        },
-
-        AchievementsTotalAchievements() {
-            return this.achievements.length;
-        },
-
-        AchievementsTotalAchievementsGroups() {
-            return this.achievementsGroups.length;
-        },
-
-        AchievementsTotalPlayerAchievements() {
-            return this.playerAchievements.length;
-        },
-
-        AchievementsCurAchievementIndex() {
-            return this.currentAchievementIndex;
-        },
+    const C3 = self.C3;
 
-        AchievementsCurAchievementID() {
-            return this.currentAchievementId;
+    C3.Plugins.CV_MobileOneSignal.Exps = {
+        Subscribed()
+        {
+            return this._C3Current.subscribed === true ? "True" : "False";
         },
 
-        AchievementsCurAchievementTag() {
-            return this.currentAchievementTag;
+        UserSubscriptionSetting()
+        {
+            return this._C3Current.userSubscriptionSetting === true ? "True" : "False";
         },
 
-        AchievementsCurAchievementName() {
-            return this.currentAchievementName;
+        UserID()
+        {
+            if (this.IsNull(this._C3Current.userID)) { return ""; }
+            return this._C3Current.userID;
         },
 
-        AchievementsCurAchievementDescription() {
-            return this.currentAchievementDescription;
+        PushToken()
+        {
+            if (this.IsNull(this._C3Current.pushToken)) { return ""; }
+            return this._C3Current.pushToken;
         },
 
-        AchievementsCurAchievementIcon() {
-            return this.currentAchievementIcon;
+        Status()
+        {
+            if (this.IsNull(this._C3Current.status)) { return ""; }
+            return this._C3Current.status;
         },
 
-        AchievementsCurAchievementIconSmall() {
-            return this.currentAchievementIconSmall;
+        State()
+        {
+            if (this.IsNull(this._C3Current.state)) { return ""; }
+            return this._C3Current.state;
         },
 
-        AchievementsCurAchievementRare() {
-            return this.currentAchievementRare;
+        HasPrompted()
+        {
+            return this._C3Current.hasPrompted === true ? "True" : "False";
         },
 
-        AchievementsCurAchievementUnlocked() {
-            return this.currentAchievementUnlocked;
+        Provisional()
+        {
+            return this._C3Current.pushToken === true ? "True" : "False";
         },
 
-        AchievementsCurAchievementsGroupIndex() {
-            return this.currentAchievementsGroupIndex;
+        PermissionStatus()
+        {
+            if (this.IsNull(this._C3Current.PermissionStatus)) { return ""; }
+            return this._C3Memory.PermissionStatus;
         },
 
-        AchievementsCurAchievementsGroupID() {
-            return this.currentAchievementsGroupID;
+        SubscriptionStatus()
+        {
+            if (this.IsNull(this._C3Current.SubscriptionStatus)) { return ""; }
+            return this._C3Memory.SubscriptionStatus;
         },
 
-        AchievementsCurAchievementsGroupTag() {
-            return this.currentAchievementsGroupTag;
+        Tags()
+        {
+            if (this.IsNull(this._C3Memory.Tags)) { return ""; }
+            return this._C3Memory.Tags;
         },
 
-        AchievementsCurAchievementsGroupName() {
-            return this.currentAchievementsGroupName;
-        },
-
-        AchievementsCurAchievementsGroupDescription() {
-            return this.currentAchievementsGroupDescription;
-        },
-
-        AchievementsCurPlayerAchievementIndex() {
-            return this.currentPlayerAchievementIndex;
-        },
+        ObserverPermissionStatus()
+        {
+            if (this.IsNull(this._C3Memory.ObserverPermissionStatus)) { return ""; }
+            return this._C3Memory.ObserverPermissionStatus;
+        },        
 
-        AchievementsCurPlayerAchievementID() {
-            return this.currentPlayerAchievementId;
+        ObserverSubscriptionStatus()
+        {
+            if (this.IsNull(this._C3Memory.ObserverSubscriptionStatus)) { return ""; }
+            return this._C3Memory.ObserverSubscriptionStatus;
         },
 
-        AchievementsCurPlayerAchievementUnlockDate() {
-            return this.currentPlayerAchievementUnlockDate;
+        PostNotificationData()
+        {
+            if (this.IsNull(this._C3Memory.PostNotificationData)) { return ""; }
+            return this._C3Memory.PostNotificationData;
         },
 
-        AchievementsUnlockedAchievementSuccess() {
-            return this.isUnlockAchievementSuccess;
+        NotificationReceivedData()
+        {
+            if (this.IsNull(this._C3Memory.notificationReceived)) { return ""; }
+            return this._C3Memory.notificationReceived;
         },
 
-        AchievementsUnlockedAchievementError() {
-            return this.unlockAchievementError;
+        NotificationOpenedData()
+        {
+            if (this.IsNull(this._C3Memory.notificationOpened)) { return ""; }
+            return this._C3Memory.notificationOpened;
         },
 
-        AchievementsUnlockedAchievementID() {
-            return this.unlockedAchievementID;
+        TriggerValue()
+        {
+            if (this.IsNull(this._C3Memory.TriggerValue)) { return ""; }
+            return this._C3Memory.TriggerValue;
         },
 
-        AchievementsUnlockedAchievementTag() {
-            return this.unlockedAchievementTag;
+        FirstClick()
+        {
+            return this._C3Current.firstClick === true ? "True" : "False";
         },
 
-        AchievementsUnlockedAchievementName() {
-            return this.unlockedAchievementName;
+        ClosesMessage()
+        {
+            return this._C3Current.closesMessage === true ? "True" : "False";
         },
 
-        AchievementsUnlockedAchievementDescription() {
-            return this.unlockedAchievementDescription;
+        ClickURL()
+        {
+            if (this.IsNull(this._C3Current.clickURL)) { return ""; }
+            return this._C3Current.clickURL;
         },
 
-        AchievementsUnlockedAchievementIcon() {
-            return this.unlockedAchievementIcon;
+        ClickName()
+        {
+            if (this.IsNull(this._C3Current.clickName)) { return ""; }
+            return this._C3Current.clickName;
         },
 
-        AchievementsUnlockedAchievementIconSmall() {
-            return this.unlockedAchievementIconSmall;
+        NewEmail()
+        {
+            if (this.IsNull(this._C3Current.newEmail)) { return ""; }
+            return this._C3Current.newEmail;
         },
 
-        AchievementsUnlockedAchievementRare() {
-            return this.unlockedAchievementRare;
+        NewUserID()
+        {
+            if (this.IsNull(this._C3Current.newEmailUserID)) { return ""; }
+            return this._C3Current.newEmailUserID;
         },
 
-        SocialsCommunityLink() {
-            return this.gs.socials.communityLink;
+        OldEmail()
+        {
+            if (this.IsNull(this._C3Current.oldEmail)) { return ""; }
+            return this._C3Current.oldEmail;
         },
 
-        AsJSON() {
-            return JSON.stringify(this.SaveToJson());
+        OldUserID()
+        {
+            if (this.IsNull(this._C3Current.oldEmailUserID)) { return ""; }
+            return this._C3Current.oldEmailUserID;
         }
     };
 }
-
 }
 
 {
-'use strict';const C3=self.C3;C3.Plugins.advert=class MobileAdvertPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
+"use strict";
 
+{
+	const C3 = self.C3;
+
+	C3.Plugins.CV_MobileSleep = class Mobile_Sleep_Plugin extends C3.SDKPluginBase
+	{
+		constructor(opts)
+		{
+			super(opts);
+		}
+		
+		Release()
+		{
+			super.Release();
+		}
+	};
+}
 }
 
 {
-'use strict';const C3=self.C3;C3.Plugins.advert.Type=class MobileAdvertType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}};
+"use strict";
 
+{
+	const C3 = self.C3;
+
+	C3.Plugins.CV_MobileSleep.Type = class Mobile_Sleep_Type extends C3.SDKTypeBase
+	{
+		constructor(objectClass)
+		{
+			super(objectClass);
+		}
+		
+		Release()
+		{
+			super.Release();
+		}
+		
+		OnCreate()
+		{	
+		}
+	};
+}
 }
 
 {
-'use strict';const C3=self.C3;const BUSY="busy";const SET="set";const DOM_COMPONENT_ID="advert";function Log(str){console.log("[C3 advert]",str)}
-C3.Plugins.advert.Instance=class MobileAdvertInstance extends C3.SDKInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this.testMode=!!properties[0];this.keyState=null;this.bannerState=null;this.interstitialState=null;this.videoState=null;this.rewardedState=null;this.rewardedInterstitialState=null;this.consentStatus=null;this.idfaStatus="not-determined";this.isInEeaOrUnknown=true;this.rewardType="";this.rewardValue=0;this.rewardInterstitialType="";this.rewardInterstitialValue=
-0;const rt=this._runtime.Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"beforeruntimestart",()=>this._OnBeforeRuntimeStart(properties)),C3.Disposable.From(rt,"layoutchange",()=>this._OnLayoutChange()))}async _OnBeforeRuntimeStart(properties){const androidID=properties[1];const iOSID=properties[2];const pubID=properties[3];const showAdFree=properties[4];const privacyPolicy=properties[5];const showConsent=properties[6];const debugLocation=properties[7];const showOnStartUp=
-properties[8];const appID=this._runtime.IsiOSCordova()?iOSID:androidID;if(appID){await this._StatusUpdate(debugLocation);this._SetPublicKey(appID,pubID,privacyPolicy,showAdFree,showConsent,debugLocation,showOnStartUp)}}_OnLayoutChange(){if(this.keyState===SET)this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationComplete)}async _StatusUpdate(debugLocation){try{debugLocation=["DISABLED","EEA","NOT_EEA"][debugLocation];const result=await this.PostToDOMAsync("StatusUpdate",[this.testMode,debugLocation]);
-const [consentStatus,idfaStatus,inEEA]=result.split("&&");this.consentStatus=consentStatus;this.idfaStatus=idfaStatus;this.isInEeaOrUnknown=inEEA!=="false"}catch(e){this.SetError("status failed to update",e)}}async _SetPublicKey(appID,pubID,privacyPolicy,showAdFree,showConsent,debugLocation,showOnStartUp){if(this.keyState!==null)return;this.keyState=BUSY;showConsent=["eu","always","never"][showConsent];debugLocation=["DISABLED","EEA","NOT_EEA"][debugLocation];try{const result=await this.PostToDOMAsync("Configure",
-[appID.trim(),pubID.trim(),privacyPolicy.trim(),showAdFree,showConsent,this.testMode,debugLocation,showOnStartUp]);const [consentStatus,idfaStatus,inEEA]=result.split("&&");this.isInEeaOrUnknown=inEEA!=="false";this.keyState=SET;this.consentStatus=consentStatus;this.idfaStatus=idfaStatus;this.SetParameters("configuration complete");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationComplete)}catch(e){this.keyState=null;this.SetError("configuration failed",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationFailed)}}PostToDOMAsync(name,
-data=[]){return super.PostToDOMAsync(name,data)}SetError(name,err){const message=typeof err==="string"?err:err.message;this.SetParameters(name,message)}SetParameters(name,err="",type="",amount=0,adType=""){Log(`Event (${name} Error (${err}) Type (${type}) Amount (${amount}))`);this.errorMessage=err||"";switch(adType){case "rewarded":{this.rewardType=type||"";this.rewardValue=amount||0;break}case "rewarded interstitial":{this.rewardInterstitialType=type||"";this.rewardInterstitialValue=amount||0;break}default:{this.rewardType=
-"";this.rewardValue=0;this.rewardInterstitialType="";this.rewardInterstitialValue=0}}}};
+"use strict";
 
+{
+	const C3 = self.C3;
+
+	const DOM_COMPONENT_ID = "cv-mobile-sleep";
+
+	C3.Plugins.CV_MobileSleep.Instance = class Mobile_Sleep_Instance extends C3.SDKInstanceBase
+	{
+		constructor(inst, properties)
+		{
+			super(inst, DOM_COMPONENT_ID);
+			
+			this.Initialize();
+		}
+		
+		Release()
+		{
+			super.Release();
+		}
+		
+		SaveToJson()
+		{
+			return {
+			};
+		}
+		
+		LoadFromJson(o)
+		{
+		}
+
+		///////////////////////////////////////
+		// Core Methods
+		Initialize()
+		{
+			//** State variables **//
+			this._isMobile = false;
+
+			//** System References **//
+			const self = this;
+
+			//** Construct 3 Trigger **//
+			this._C3Trigger = {
+	
+				WakeLock_Success : () => {
+	
+					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockAwake);
+				},
+				WakeLock_Failure : () => {
+	
+					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockAwakeFailed);
+				},						
+	
+				DimLock_Success : () => {
+	
+					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockDimmed);
+				},		
+				DimLock_Failure : () => {
+	
+					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockDimmedFailed);
+				},
+				
+				ReleaseLock_Success : () => {
+	
+					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockRelease);
+				},		
+				ReleaseLock_Failure : () => {
+	
+					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnLockReleaseFailed);
+				},
+	
+				PauseRelease_Success : () => {
+	
+					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnPauseSleepRelease);
+				},		
+				PauseRelease_Failure : () => {
+	
+					self.Trigger(C3.Plugins.CV_MobileSleep.Cnds.OnPauseSleepReleaseFailed);
+				}				
+			};
+
+			//** Construct 3 DOM Handlers **//
+            this.AddDOMMessageHandlers([
+				["start-sdk", e => this._StartSDK(...e)],
+				["wake-lock-success", e => this._C3Trigger.WakeLock_Success(...e)],
+				["wake-lock-failure", e => this._C3Trigger.WakeLock_Failure(...e)],
+				["dim-lock-success", e => this._C3Trigger.DimLock_Success(...e)],
+				["dim-lock-failure", e => this._C3Trigger.DimLock_Failure(...e)],
+				["release-lock-success", e => this._C3Trigger.ReleaseLock_Success(...e)],
+				["release-lock-failure", e => this._C3Trigger.ReleaseLock_Failure(...e)],
+				["pause-release-success", e => this._C3Trigger.PauseRelease_Success(...e)],
+				["pause-release-failure", e => this._C3Trigger.PauseRelease_Failure(...e)]
+            ]);
+		}
+
+		///////////////////////////////////////
+		// DOM Methods
+		_StartSDK()
+		{
+			this._isMobile = true;
+		}
+
+		///////////////////////////////////////
+		// Action Methods
+		_WakeLock ()
+		{
+			if (!this.IsDependencyCleared()) { return; }
+			this.PostToDOM("wake-lock", []);
+		}
+		_DimLock ()
+		{
+			if (!this.IsDependencyCleared()) { return; }
+			this.PostToDOM("dim-lock", []);
+		}
+		_ReleaseLock ()
+		{
+			if (!this.IsDependencyCleared()) { return; }
+			this.PostToDOM("release-lock", []);
+		}
+		_PauseRelease (_bool)
+		{
+			if (!this.IsDependencyCleared()) { return; }
+			const bool = _bool === 0 ? true : false;
+			this.PostToDOM("pause-release", [bool]);
+		}
+
+		///////////////////////////////////////
+		// Getter Methods
+		IsDependencyCleared ()
+		{
+			return this._isMobile;
+		}
+
+		///////////////////////////////////////
+	};
+}
 }
 
 {
-'use strict';const C3=self.C3;const SHOWN="shown";const LOADED="loaded";const SET="set";
-C3.Plugins.advert.Cnds={OnBannerReady(){return true},OnVideoReady(){return true},OnRewardedReady(){return true},OnInterstitialReady(){return true},OnRewardedInterstitialReady(){return true},OnBannerFailedToLoad(){return true},OnVideoFailedToLoad(){return true},OnRewardedFailedToLoad(){return true},OnInterstitialFailedToLoad(){return true},OnRewardedInterstitialFailedToLoad(){return true},OnBannerShown(){return true},OnVideoComplete(){return true},OnRewardedComplete(){return true},OnInterstitialComplete(){return true},
-OnRewardedInterstitialComplete(){return true},OnBannerHidden(){return true},OnVideoCancelled(){return true},OnRewardedCancelled(){return true},OnInterstitialCancelled(){return true},OnRewardedInterstitialCancelled(){return true},OnConfigurationFailed(){return true},OnConfigurationComplete(){return true},OnUserPersonalizationUpdated(){return true},IsShowingBanner(){return this.bannerState===SHOWN},IsShowingVideo(){return this.videoState===SHOWN},IsShowingRewarded(){return this.rewardedState===SHOWN},
-IsShowingInterstitial(){return this.interstitialState===SHOWN},IsShowingRewardedInterstitial(){return this.rewardedInterstitialState===SHOWN},IsInEeaOrUnknown(){return this.isInEeaOrUnknown},IsBannerLoaded(){return this.bannerState===LOADED},IsVideoLoaded(){return this.videoState===LOADED},IsRewardedLoaded(){return this.rewardedState===LOADED},IsInterstitialLoaded(){return this.interstitialState===LOADED},IsRewardedInterstitialLoaded(){return this.rewardedInterstitialState===LOADED},IsConfigured(){return this.keyState===
-SET},OnIDFARequestComplete(){return true}};
+"use strict";
 
+{
+	const C3 = self.C3;
+
+	C3.Plugins.CV_MobileSleep.Cnds =
+	{
+		OnLockAwake 				 () { return true; },
+		OnLockAwakeFailed 			 () { return true; },
+		OnLockDimmed 				 () { return true; },
+		OnLockDimmedFailed 			 () { return true; },
+		OnLockRelease 				 () { return true; },
+		OnLockReleaseFailed 		 () { return true; },
+		OnPauseSleepRelease 		 () { return true; },
+		OnPauseSleepReleaseFailed 	 () { return true; }
+	};
+}
 }
 
 {
-'use strict';const C3=self.C3;const BUSY="busy";const SHOWN="shown";const LOADED="loaded";const SET="set";const BANNER_SIZES=["portrait","landscape","standard","large","medium","full","leaderboard"];const BANNER_POSITIONS=["bottom","top"];
-C3.Plugins.advert.Acts={async CreateBanner(id,size,show,position){if(this.bannerState!=null)return;this.bannerState=BUSY;try{await this.PostToDOMAsync("CreateBannerAdvert",[id.trim(),BANNER_SIZES[size],this.testMode,BANNER_POSITIONS[position]]);this.bannerState=LOADED;this.SetParameters("banner created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnBannerReady);if(show==0)C3.Plugins.advert.Acts.ShowBanner.call(this)}catch(e){this.bannerState=null;this.SetError("failed to create banner",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnBannerFailedToLoad)}},
-async ShowBanner(){if(this.bannerState!=LOADED)return;this.bannerState=BUSY;try{await this.PostToDOMAsync("ShowBannerAdvert");this.bannerState=SHOWN;this.SetParameters("banner shown");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnBannerShown)}catch(e){this.bannerState=null;this.SetError("failed to show banner",e)}},async HideBanner(){if(this.bannerState!=SHOWN)return;this.bannerState=BUSY;try{await this.PostToDOMAsync("HideBannerAdvert");this.bannerState=null;this.SetParameters("banner hidden");
-await this.TriggerAsync(C3.Plugins.advert.Cnds.OnBannerHidden)}catch(e){this.bannerState=null;this.SetError("failed to hide banner",e)}},async CreateInterstitial(id,show){if(this.interstitialState!=null)return;this.interstitialState=BUSY;try{await this.PostToDOMAsync("CreateInterstitialAdvert",[id.trim(),this.testMode]);this.interstitialState=LOADED;this.SetParameters("interstitial created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnInterstitialReady);if(show==0)C3.Plugins.advert.Acts.ShowInterstitial.call(this)}catch(e){this.interstitialState=
-null;this.SetError("failed to create interstitial",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnInterstitialFailedToLoad)}},async ShowInterstitial(){if(this.interstitialState!=LOADED)return;this.interstitialState=SHOWN;try{await this.PostToDOMAsync("ShowInterstitialAdvert");this.interstitialState=null;this.SetParameters("interstitial completed");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnInterstitialComplete)}catch(e){this.interstitialState=null;this.SetError("interstitial cancelled",
-e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnInterstitialCancelled)}},async CreateVideo(id,show){if(this.videoState!=null||this.rewardedState!=null)return;this.videoState=BUSY;try{await this.PostToDOMAsync("CreateVideoAdvert",[id.trim(),this.testMode]);this.videoState=LOADED;this.SetParameters("video created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnVideoReady);if(show==0)C3.Plugins.advert.Acts.ShowVideo.call(this)}catch(e){this.videoState=null;this.SetError("failed to create video",
-e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnVideoFailedToLoad)}},async ShowVideo(){if(this.videoState!=LOADED)return;this.videoState=SHOWN;try{const result=await this.PostToDOMAsync("ShowVideoAdvert");const [type,value]=JSON.parse(result);this.videoState=null;this.SetParameters("video completed",null,type,value);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnVideoComplete)}catch(e){this.videoState=null;this.SetError("video cancelled",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnVideoCancelled)}},
-async CreateRewarded(id,show){if(this.rewardedState!=null||this.videoState!=null)return;this.rewardedState=BUSY;try{await this.PostToDOMAsync("CreateRewardedAdvert",[id.trim(),this.testMode]);this.rewardedState=LOADED;this.SetParameters("rewarded created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedReady);if(show==0)C3.Plugins.advert.Acts.ShowRewarded.call(this)}catch(e){this.rewardedState=null;this.SetError("failed to create rewarded",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedFailedToLoad)}},
-async ShowRewarded(){if(this.rewardedState!=LOADED)return;this.rewardedState=SHOWN;try{const result=await this.PostToDOMAsync("ShowRewardedAdvert");const [type,value]=JSON.parse(result);this.rewardedState=null;this.SetParameters("rewarded completed",null,type,value,"rewarded");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedComplete)}catch(e){this.rewardedState=null;this.SetError("rewarded cancelled",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedCancelled)}},async CreateRewardedInterstitial(id,
-show){if(this.rewardedInterstitialState!=null)return;this.rewardedInterstitialState=BUSY;try{await this.PostToDOMAsync("CreateRewardedInterstitialAdvert",[id.trim(),this.testMode]);this.rewardedInterstitialState=LOADED;this.SetParameters("rewarded interstitial created");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedInterstitialReady);if(show==0)C3.Plugins.advert.Acts.ShowRewardedInterstitial.call(this)}catch(e){this.rewardedInterstitialState=null;this.SetError("failed to create rewarded interstitial",
-e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedInterstitialFailedToLoad)}},async ShowRewardedInterstitial(){if(this.rewardedInterstitialState!=LOADED)return;this.rewardedInterstitialState=SHOWN;try{const result=await this.PostToDOMAsync("ShowRewardedInterstitialAdvert");const [type,value]=JSON.parse(result);this.rewardedInterstitialState=null;this.SetParameters("rewarded interstitial completed",null,type,value,"rewarded interstitial");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedInterstitialComplete)}catch(e){this.rewardedInterstitialState=
-null;this.SetError("rewarded interstitial cancelled",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnRewardedInterstitialCancelled)}},SetPublicKey(appID,pubID,privacyPolicy,showAdFree,showConsent,debugLocation){showAdFree=[true,false][showAdFree];this._SetPublicKey(appID,pubID,privacyPolicy,showAdFree,showConsent,debugLocation)},async ShowConsentDialog(){if(this.keyState!==SET)return;this.keyState=BUSY;try{const lastIdfaStatus=this.idfaStatus;const result=await this.PostToDOMAsync("RequestConsent");
-const [consentStatus,idfaStatus,_]=result.split("&&");this.keyState=SET;this.consentStatus=consentStatus;this.idfaStatus=idfaStatus;if(lastIdfaStatus!==this.idfaStatus)this.Trigger(C3.Plugins.advert.Cnds.OnIDFARequestComplete);this.SetParameters("configuration complete");await this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationComplete)}catch(e){this.keyState=SET;this.SetError("configuration failed",e);await this.TriggerAsync(C3.Plugins.advert.Cnds.OnConfigurationFailed)}},async SetUserPersonalization(newStatus){},
-async SetMaxAdContentRating(label){if(this.keyState!==SET)return;try{const param=["G","PG","T","MA"][label];await this.PostToDOMAsync("SetMaxAdContentRating",[param])}catch(e){}},async TagForChildDirectedTreatment(option){if(this.keyState!==SET)return;try{await this.PostToDOMAsync("TagForChildDirectedTreatment",[option?1:0])}catch(e){}},async TagForUnderAgeOfConsent(option){if(this.keyState!==SET)return;try{await this.PostToDOMAsync("TagForUnderAgeOfConsent",[option?1:0])}catch(e){}},async RequestIDFA(){try{this.idfaStatus=
-await this.PostToDOMAsync("RequestIDFA")}catch(err){console.warn("Error requesting IDFA: ",err);this.idfaStatus="error"}this.Trigger(C3.Plugins.advert.Cnds.OnIDFARequestComplete)}};
+"use strict";
 
+{
+	const C3 = self.C3;
+
+	C3.Plugins.CV_MobileSleep.Acts =
+	{
+		LockAwakeApp ()
+		{
+			this._WakeLock();
+		},
+		LockDimApp ()
+		{
+			this._DimLock();
+		},
+		ReleaseLock ()
+		{
+			this._ReleaseLock();
+		},
+		ReleasePauseSleep (bool)
+		{
+			this._PauseRelease(bool);
+		}
+	};
+}
 }
 
 {
-'use strict';const C3=self.C3;C3.Plugins.advert.Exps={ErrorMessage(){return this.errorMessage||""},RewardType(){return this.rewardType||""},RewardValue(){return this.rewardValue||0},RewardInterstitialType(){return this.rewardInterstitialType||""},RewardInterstitialValue(){return this.rewardInterstitialValue||0},ConsentStatus(){return this.consentStatus||"UNKNOWN"},IDFAStatus(){return this.idfaStatus}};
+"use strict";
 
+{
+	const C3 = self.C3;
+
+	C3.Plugins.CV_MobileSleep.Exps =
+	{
+	};
+}
 }
 
 {
@@ -10889,25 +9169,24 @@ function SplitConvexPolysOver8Points(convexPolys){const ret=[];for(const arr of 
 const C3 = self.C3;
 self.C3_GetObjectRefTable = function () {
 	return [
-		C3.Plugins.Browser,
-		C3.Plugins.CV_FirebaseAnalytics,
-		C3.Plugins.CV_MobileSleep,
-		C3.Plugins.Chadori_MobileBilling,
-		C3.Plugins.LocalStorage,
-		C3.Plugins.Audio,
-		C3.Plugins.XML,
 		C3.Plugins.AJAX,
-		C3.Plugins.googleplay,
-		C3.Plugins.Keyboard,
-		C3.Plugins.Touch,
-		C3.Plugins.Share,
+		C3.Plugins.Audio,
 		C3.Plugins.BinaryData,
+		C3.Plugins.Browser,
 		C3.Plugins.Date,
+		C3.Plugins.Keyboard,
+		C3.Plugins.LocalStorage,
 		C3.Plugins.PlatformInfo,
-		C3.Plugins.CV_MobileOneSignal,
-		C3.Plugins.Chadori_Mobile_Facebook,
-		C3.Plugins.Eponesh_GameScore,
+		C3.Plugins.Share,
+		C3.Plugins.Touch,
+		C3.Plugins.XML,
+		C3.Plugins.CV_FirebaseAnalytics,
 		C3.Plugins.advert,
+		C3.Plugins.Chadori_MobileBilling,
+		C3.Plugins.googleplay,
+		C3.Plugins.Chadori_Mobile_Facebook,
+		C3.Plugins.CV_MobileOneSignal,
+		C3.Plugins.CV_MobileSleep,
 		C3.Plugins.TiledBg,
 		C3.Behaviors.rex_Anchor_mod,
 		C3.Behaviors.Tween,
@@ -10922,6 +9201,17 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.System.Cnds.OnLayoutStart,
 		C3.Plugins.Sprite.Acts.Destroy,
 		C3.Plugins.System.Cnds.IsGroupActive,
+		C3.Plugins.Chadori_MobileBilling.Cnds.OnInitialized,
+		C3.Plugins.Chadori_MobileBilling.Cnds.ForEachProduct,
+		C3.Plugins.System.Cnds.PickByComparison,
+		C3.Plugins.Chadori_MobileBilling.Exps.ProductId,
+		C3.Plugins.Text.Acts.SetText,
+		C3.Plugins.Chadori_MobileBilling.Exps.ProductPrice,
+		C3.Plugins.Chadori_MobileBilling.Cnds.OnPurchaseSucceeded,
+		C3.Plugins.Dictionary.Acts.SetKey,
+		C3.Plugins.System.Acts.SetBoolVar,
+		C3.ScriptsInEvents.Es_main_Event11_Act1,
+		C3.Plugins.googleplay.Acts.SignIn,
 		C3.Plugins.LocalStorage.Acts.CheckItemExists,
 		C3.Plugins.Chadori_MobileBilling.Acts.Register,
 		C3.Plugins.Chadori_MobileBilling.Acts.Initialize,
@@ -10939,23 +9229,11 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.AJAX.Exps.LastData,
 		C3.Plugins.XML.Acts.Load,
 		C3.Plugins.Text.Cnds.IsBoolInstanceVarSet,
-		C3.Plugins.Text.Acts.SetText,
+		C3.Plugins.googleplay.Cnds.IsSignedIn,
 		C3.Plugins.advert.Acts.CreateBanner,
-		C3.Plugins.PlatformInfo.Cnds.IsWebExport,
-		C3.Plugins.Eponesh_GameScore.Acts.AdsShowSticky,
 		C3.Plugins.System.Acts.Wait,
 		C3.Plugins.advert.Acts.CreateInterstitial,
-		C3.Plugins.Eponesh_GameScore.Acts.AdsShowFullscreen,
 		C3.Plugins.advert.Acts.CreateRewarded,
-		C3.Plugins.Eponesh_GameScore.Acts.AdsShowRewarded,
-		C3.Plugins.Chadori_MobileBilling.Cnds.OnInitialized,
-		C3.Plugins.Chadori_MobileBilling.Cnds.ForEachProduct,
-		C3.Plugins.System.Cnds.PickByComparison,
-		C3.Plugins.Chadori_MobileBilling.Exps.ProductId,
-		C3.Plugins.Chadori_MobileBilling.Exps.ProductPrice,
-		C3.Plugins.Chadori_MobileBilling.Cnds.OnPurchaseSucceeded,
-		C3.Plugins.Dictionary.Acts.SetKey,
-		C3.Plugins.System.Acts.SetBoolVar,
 		C3.Plugins.System.Acts.SetGroupActive,
 		C3.Plugins.Particles.Acts.SetRate,
 		C3.Plugins.System.Cnds.CompareVar,
@@ -10980,6 +9258,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.System.Cnds.For,
 		C3.Plugins.System.Exps.loopindex,
 		C3.Plugins.Dictionary.Acts.AddKey,
+		C3.Plugins.googleplay.Acts.SetStepsAchievement,
 		C3.Plugins.Browser.Acts.Vibrate,
 		C3.Plugins.googleplay.Acts.IncrementAchievement,
 		C3.Plugins.googleplay.Acts.UnlockAchievement,
@@ -11003,7 +9282,6 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Sprite.Exps.Width,
 		C3.Plugins.Sprite.Exps.Height,
 		C3.Plugins.advert.Cnds.OnRewardedComplete,
-		C3.Plugins.Eponesh_GameScore.Cnds.OnAdsRewardedReward,
 		C3.Plugins.Arr.Acts.SetSize,
 		C3.Plugins.Arr.Acts.Push,
 		C3.Plugins.Json.Exps.Get,
@@ -11017,6 +9295,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Text.Acts.SetFontSize,
 		C3.Behaviors.Tween.Acts.TweenValue,
 		C3.Plugins.Sprite.Acts.SetOpacity,
+		C3.Plugins.advert.Cnds.IsRewardedLoaded,
 		C3.Plugins.Touch.Cnds.OnTouchObject,
 		C3.Plugins.Sprite.Cnds.IsBoolInstanceVarSet,
 		C3.Plugins.Sprite.Acts.SetBoolInstanceVar,
@@ -11041,8 +9320,6 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Sprite.Acts.SetInstanceVar,
 		C3.Plugins.Text.Cnds.CompareInstanceVar,
 		C3.Behaviors.Tween.Acts.StopTweens,
-		C3.Plugins.googleplay.Cnds.IsSignedIn,
-		C3.Plugins.googleplay.Acts.SignIn,
 		C3.Plugins.googleplay.Acts.ShowAchievements,
 		C3.Plugins.googleplay.Acts.ShowLeaderboards,
 		C3.Plugins.Text.Acts.TypewriterText,
@@ -11060,6 +9337,9 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Text.Acts.SetSize,
 		C3.Plugins.Text.Acts.SetFontColor,
 		C3.Plugins.System.Acts.SubVar,
+		C3.Plugins.Touch.Cnds.OnTouchStart,
+		C3.Plugins.Touch.Exps.X,
+		C3.Plugins.Touch.Exps.Y,
 		C3.Plugins.googleplay.Acts.SubmitScore,
 		C3.Plugins.Text.Acts.MoveToBottom,
 		C3.Plugins.Sprite.Cnds.OnCollision,
@@ -11072,6 +9352,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.System.Acts.SnapshotCanvas,
 		C3.Plugins.TiledBg.Acts.SetWidth,
 		C3.Plugins.TiledBg.Acts.SetHeight,
+		C3.Plugins.TiledBg.Acts.SetPos,
 		C3.Plugins.TiledBg.Acts.SetOpacity,
 		C3.Plugins.System.Cnds.OnCanvasSnapshot,
 		C3.Plugins.AJAX.Acts.SetResponseBinary,
@@ -11082,7 +9363,6 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.advert.Cnds.OnRewardedReady,
 		C3.Plugins.advert.Cnds.OnRewardedFailedToLoad,
 		C3.Plugins.advert.Cnds.OnRewardedCancelled,
-		C3.Plugins.Eponesh_GameScore.Cnds.OnAdsRewardedClose,
 		C3.Plugins.System.Acts.UnloadUnusedTextures,
 		C3.Plugins.Audio.Acts.Play,
 		C3.Plugins.Audio.Acts.PlayByName,
@@ -11090,32 +9370,29 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.System.Exps.viewportright,
 		C3.Plugins.System.Exps.viewportbottom,
 		C3.Plugins.System.Exps.viewporttop,
-		C3.Plugins.Sprite.Acts.SetWidth,
-		C3.Plugins.TiledBg.Acts.SetPos,
 		C3.Plugins.System.Acts.SetLayerVisible,
 		C3.Plugins.System.Acts.SetLayerOpacity
 	];
 };
 self.C3_JsPropNameTable = [
-	{Browser: 0},
-	{FirebaseAnalytics: 0},
-	{MobileSleep: 0},
-	{MobileBilling: 0},
-	{LocalStorage: 0},
-	{Audio: 0},
-	{XML: 0},
 	{AJAX: 0},
-	{GooglePlay: 0},
-	{Keyboard: 0},
-	{Touch: 0},
-	{Share: 0},
+	{Audio: 0},
 	{BinaryData: 0},
+	{Browser: 0},
 	{Date: 0},
+	{Keyboard: 0},
+	{LocalStorage: 0},
 	{PlatformInfo: 0},
-	{MobileOneSignal: 0},
-	{MobileFacebook: 0},
-	{GameScore: 0},
+	{Share: 0},
+	{Touch: 0},
+	{XML: 0},
+	{FirebaseAnalytics: 0},
 	{MobileAdvert: 0},
+	{MobileBilling: 0},
+	{GooglePlay: 0},
+	{MobileFacebook: 0},
+	{MobileOneSignal: 0},
+	{MobileSleep: 0},
 	{Screen: 0},
 	{ui_BackBlackScreen: 0},
 	{AnchorMod: 0},
@@ -11137,7 +9414,6 @@ self.C3_JsPropNameTable = [
 	{ui_Layer: 0},
 	{ui_Transition: 0},
 	{ui_FreeMoveFrame: 0},
-	{ui_gameTapButton: 0},
 	{otherString: 0},
 	{Enabled: 0},
 	{ui_Buttons: 0},
@@ -11172,6 +9448,7 @@ self.C3_JsPropNameTable = [
 	{game_Items: 0},
 	{game_DeathZone: 0},
 	{game_Barrel: 0},
+	{TiledBackground: 0},
 	{firtstItemTapType: 0},
 	{firtstItemFrame: 0},
 	{secondItemTapType: 0},
@@ -11373,9 +9650,20 @@ function or(l, r)
 
 self.C3_ExpressionFuncs = [
 		() => "Main_System",
-		() => "Save",
+		() => "InApp",
+		p => {
+			const n0 = p._GetNode(0);
+			return () => n0.ExpInstVar();
+		},
+		() => "Price_InApp",
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => f0();
+		},
 		() => "remove_ads",
 		() => "RemoveAds",
+		() => 1,
+		() => "Save",
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
 			const f1 = p._GetNode(1).GetBoundMethod();
@@ -11387,7 +9675,6 @@ self.C3_ExpressionFuncs = [
 			const f7 = p._GetNode(7).GetBoundMethod();
 			return () => ((or(or(or(((f0(f1(), 2)) === ("ru") ? 1 : 0), ((f2(f3(), 2)) === ("ua") ? 1 : 0)), ((f4(f5(), 2)) === ("by") ? 1 : 0)), ((f6(f7(), 2)) === ("kz") ? 1 : 0))) ? (1) : (0));
 		},
-		() => 1,
 		() => "getStrings",
 		p => {
 			const v0 = p._GetNode(0).GetVar();
@@ -11401,25 +9688,16 @@ self.C3_ExpressionFuncs = [
 		},
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => f0();
-		},
-		p => {
-			const f0 = p._GetNode(0).GetBoundMethod();
 			const n1 = p._GetNode(1);
 			return () => f0(n1.ExpInstVar());
 		},
+		() => 0,
 		() => "ADS",
 		() => "ca-app-pub-2722090745576414/8260293151",
 		() => 0.5,
 		() => "ca-app-pub-2722090745576414/6767248081",
 		() => "ca-app-pub-2722090745576414/3029498841",
 		() => "ca-app-pub-2722090745576414/4566699964",
-		() => "InApp",
-		p => {
-			const n0 = p._GetNode(0);
-			return () => n0.ExpInstVar();
-		},
-		() => "Price_InApp",
 		() => "Main_GiftScreen",
 		() => "UI_DailyGift",
 		() => "UI_Menu",
@@ -11499,7 +9777,6 @@ self.C3_ExpressionFuncs = [
 			const f3 = p._GetNode(3).GetBoundMethod();
 			return () => f0(f1(n2.ExpObject("DailyGiftLastGetTime"), f3(), "seconds"));
 		},
-		() => 0,
 		p => {
 			const n0 = p._GetNode(0);
 			return () => n0.ExpObject("Money");
@@ -11551,19 +9828,19 @@ self.C3_ExpressionFuncs = [
 		() => "On",
 		() => "Sounds",
 		() => "Highscore",
-		() => "Miss",
-		() => "200,100,200",
 		() => "Step",
 		() => "DeliciousCollection",
 		() => "CgkIyu3K3PAVEAIQAQ",
-		() => "DrinkCollection",
 		() => "CgkIyu3K3PAVEAIQAg",
-		() => "HotFoodCollection",
 		() => "CgkIyu3K3PAVEAIQAw",
-		() => "KitchenCollection",
 		() => "CgkIyu3K3PAVEAIQBA",
-		() => "PartyCollection",
 		() => "CgkIyu3K3PAVEAIQBQ",
+		() => "Miss",
+		() => "200",
+		() => "DrinkCollection",
+		() => "HotFoodCollection",
+		() => "KitchenCollection",
+		() => "PartyCollection",
 		() => "Stage",
 		() => "Stage_2",
 		() => "CgkIyu3K3PAVEAIQBg",
@@ -12112,6 +10389,8 @@ self.C3_ExpressionFuncs = [
 		() => "TimeTick",
 		() => 160,
 		() => "BossCompleted",
+		() => "Tap",
+		() => 75,
 		() => 11.5,
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
@@ -12205,9 +10484,6 @@ self.C3_ExpressionFuncs = [
 		() => 0.35,
 		() => "TextNotification",
 		() => "BombsMiss",
-		() => "Tap",
-		() => 75,
-		() => 85,
 		() => "BombsCollect",
 		() => "BombsSpawn",
 		() => "Barrels",
@@ -12282,6 +10558,10 @@ self.C3_ExpressionFuncs = [
 			const v0 = p._GetNode(0).GetVar();
 			return () => (v0.GetValue() + 1);
 		},
+		p => {
+			const v0 = p._GetNode(0).GetVar();
+			return () => (v0.GetValue() + 5);
+		},
 		() => -5,
 		() => "SOUNDS",
 		() => -15,
@@ -12297,11 +10577,6 @@ self.C3_ExpressionFuncs = [
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
 			return () => f0("UI_Menu");
-		},
-		p => {
-			const v0 = p._GetNode(0).GetVar();
-			const v1 = p._GetNode(1).GetVar();
-			return () => (v0.GetValue() + (v1.GetValue() / 2));
 		},
 		p => {
 			const n0 = p._GetNode(0);

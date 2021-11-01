@@ -18,7 +18,7 @@
 <!-- Settings -->
    <string id='Sounds'>Sounds</string>
    <string id='Vibration'>Vibration</string>
-   <string id='Step'>Step </string>
+   <string id='Step'>Stage </string>
    <string id=''></string>
 <!-- Game -->
    <string id='TapType_1'>1 Tap</string>
