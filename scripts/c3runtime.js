@@ -8185,6 +8185,2978 @@ this.GetAchievementMetadataAt(i);return a?a["unlockedUrl"]||"":""}};
 }
 
 {
+"use strict";
+{
+    C3.Plugins.Eponesh_YandexSDK = class YandexSDKPlugin extends C3.SDKDOMPluginBase {
+        constructor(opts) {
+            super(opts, 'Eponesh_YandexSDK');
+
+            this.addHandler('YSDK_ADS_REWARDED_OPEN', (inst, e) => inst.onRewardedOpen(e));
+            this.addHandler('YSDK_ADS_REWARDED_REWARD', (inst, e) => inst.onRewardedReward(e));
+            this.addHandler('YSDK_ADS_REWARDED_CLOSE', (inst, e) => inst.onRewardedClose(e));
+            this.addHandler('YSDK_ADS_REWARDED_ERROR', (inst, e) => inst.onRewardedError(e));
+
+            this.addHandler('SDK_ADS_CLOSED', (inst, e) => inst.onAdvClosed(e));
+            this.addHandler('SDK_RTB_RENDER', (inst, e) => inst.onRTBRender(e));
+        }
+
+        addHandler(handler, cb) {
+            this.AddElementMessageHandler(handler, (_, e) => cb(this.GetSingleGlobalInstance().GetSdkInstance(), e));
+        }
+
+        Release() {
+            super.Release();
+        }
+    };
+}
+
+}
+
+{
+"use strict";
+{
+    C3.Plugins.Eponesh_YandexSDK.Type = class YandexSDKType extends C3.SDKTypeBase {
+        constructor(objectClass) {
+            super(objectClass);
+        }
+
+        Release() {
+            super.Release();
+        }
+
+        OnCreate() {}
+    };
+}
+
+}
+
+{
+"use strict";
+{
+    var SDKDOMInstanceBase = globalThis.C3 ? globalThis.C3.SDKDOMInstanceBase : class {}
+    var Instance = class YandexSDKInstance extends SDKDOMInstanceBase {
+        constructor(inst, properties = []) {
+            super(inst, 'Eponesh_YandexSDK');
+            if (!globalThis.C3) {
+                return;
+            }
+            this.conditions = C3.Plugins.Eponesh_YandexSDK.Cnds;
+            this.init(properties);
+        }
+
+        async init (properties) {
+            this.enableFullscreenOnStart = properties[0];
+            this.setOrientation(properties[1]);
+            this.isOrientationLocked = properties[2];
+
+            this.metricaId = properties[3];
+            this.enableRTB = properties[4];
+
+            this.banners = {};
+            this.isRewardedVideoPlaying = false;
+
+            this.purchases = [];
+            this.products = [];
+
+            this.playerData = {};
+            this.playerStats = {};
+
+            this.currentProductID = '';
+            this.currentProductTitle = '';
+            this.currentProductImage = '';
+            this.currentProductDescription = '';
+            this.currentProductPrice = 0;
+
+            this.currentPurchaseID = '';
+            this.currentPurchaseToken = '';
+            this.currentPurchaseSign = '';
+
+            this.lastPurchaseID = '';
+            this.lastPurchaseToken = '';
+
+            this.lastStateKey = '';
+            this.lastDataKey = '';
+
+            this.player = {
+                name: '',
+                id: '',
+                photoSmall: '',
+                photoMedium: '',
+                photoLarge: ''
+            };
+
+            if (this.metricaId) {
+                this.metricaReady = this.PostToDOMElementAsync('INIT_METRICA', { metricaId: this.metricaId });
+            }
+
+            if (this.enableRTB) {
+                this.rtbReady = this.PostToDOMElementAsync('INIT_RTB');
+            }
+
+            const screen = { fullscreen: this.enableFullscreenOnStart };
+            if (this.fullscreenOrientation !== null) {
+                screen.orientation = {
+                    value: this.fullscreenOrientation,
+                    lock: this.isOrientationLocked
+                };
+            }
+
+            this.ready = this.PostToDOMElementAsync('INIT_SDK', { screen });
+            await this.ready;
+            this.paymentsReady = this._getPayments({ signed: true });
+        }
+
+        Release() {
+            super.Release();
+        }
+
+        SaveToJson() {
+            return {
+                // data to be saved for savegames
+            };
+        }
+
+        LoadFromJson(o) {
+            // load state for savegames
+        }
+
+        GetDebuggerProperties() {
+            return [ {
+                title: "YandexSDK",
+                properties: []
+            }];
+        }
+
+        setOrientation(orientation) {
+            switch (orientation) {
+                case 1: {
+                    this.fullscreenOrientation = 'portrait';
+                    break;
+                }
+                case 2: {
+                    this.fullscreenOrientation = 'landscape';
+                    break;
+                }
+                default: {
+                    this.fullscreenOrientation = null;
+                }
+            }
+        }
+
+        onAdvClosed({ wasShown }) {
+            console.log('Adv was closed, shown:', wasShown);
+            this.Trigger(this.conditions.OnAdvClosed);
+
+            if (this.isFirstAdvClosed) {
+                return;
+            }
+
+            this.isFirstAdvClosed = true;
+            this.Trigger(this.conditions.OnFirstAdvClosed);
+        }
+
+        async getPlayer() {
+            try {
+                const player = await this._getPlayer();
+                this.setPlayer(player);
+            } catch (err) {
+                try {
+                    await this._openAuthDialog();
+                    const player = await this._getPlayer();
+                    this.setPlayer(player);
+                } catch (err) {
+                    this.Trigger(this.conditions.OnSignInFailed);
+                }
+            }
+        }
+
+        async setPlayer(player) {
+            this.player = player;
+            this.playerStats = {};
+            this.playerData = {};
+            this.Trigger(this.conditions.OnSignInSuccess);
+        }
+
+        getPurchase(id) {
+            return this.purchases.find(p => p.productID === id) || {};
+        }
+
+        getProduct(id) {
+            return this.products.find(p => p.productID === id) || {};
+        }
+
+        onRewardedOpen () {
+            this.isRewardedVideoPlaying = true;
+            this.Trigger(this.conditions.OnRewardedVideoOpen);
+        }
+
+        onRewardedReward () {
+            this.Trigger(this.conditions.OnRewardedVideoReward);
+        }
+
+        onRewardedClose () {
+            this.isRewardedVideoPlaying = false;
+            this.Trigger(this.conditions.OnRewardedVideoClose);
+        }
+
+        onRewardedError () {
+            this.Trigger(this.conditions.OnRewardedVideoError);
+        }
+
+        onRTBRender ({ id }) {
+            this.banners[id].displayed = true;
+            this.lastBannerID = id;
+            this.Trigger(this.conditions.OnBannerDisplayed);
+        }
+
+        _getPayments (options) {
+            return this.PostToDOMElementAsync('YSDK_PAYMENTS_GET', options);
+        }
+
+        _getPurchases () {
+            return this.PostToDOMElementAsync('YSDK_PAYMENTS_GET_PURCHASES');
+        }
+
+        _getCatalog () {
+            return this.PostToDOMElementAsync('YSDK_PAYMENTS_GET_CATALOG');
+        }
+
+        _purchase (options) {
+            return this.PostToDOMElementAsync('YSDK_PAYMENTS_PURCHASE', options);
+        }
+
+        _consumePurchase (options) {
+            return this.PostToDOMElementAsync('YSDK_PAYMENTS_CONSUME_PURCHASE', options);
+        }
+
+        _openAuthDialog () {
+            return this.PostToDOMElementAsync('YSDK_AUTH_OPEN');
+        }
+
+        _getPlayer () {
+            return this.PostToDOMElementAsync('YSDK_PLAYER_GET');
+        }
+
+        _showFullscreenAdv () {
+            return this.PostToDOMElementAsync('YSDK_ADS_SHOW_FULLSCREEN');
+        }
+
+        _showRewardedVideo () {
+            return this.PostToDOMElementAsync('YSDK_ADS_SHOW_REWARDED');
+        }
+
+        _getPlayerFullStats () {
+            return this.PostToDOMElementAsync('YSDK_PLAYER_GET_FULL_STATS');
+        }
+
+        _getPlayerStats (payload) {
+            return this.PostToDOMElementAsync('YSDK_PLAYER_GET_STATS', payload);
+        }
+
+        _setPlayerStats (payload) {
+            return this.PostToDOMElementAsync('YSDK_PLAYER_SET_STATS', payload);
+        }
+
+        _incrementPlayerStats (payload) {
+            return this.PostToDOMElementAsync('YSDK_PLAYER_INCREMENT_STATS', payload);
+        }
+
+        _getPlayerFullData () {
+            return this.PostToDOMElementAsync('YSDK_PLAYER_GET_FULL_DATA');
+        }
+
+        _getPlayerData (payload) {
+            return this.PostToDOMElementAsync('YSDK_PLAYER_GET_DATA', payload);
+        }
+
+        _setPlayerData (payload) {
+            return this.PostToDOMElementAsync('YSDK_PLAYER_SET_DATA', payload);
+        }
+
+        _reachGoal (payload) {
+            return this.PostToDOMElement('YSDK_METRICA_REACH_GOAL', payload);
+        }
+
+        _rtbCreateBanner (payload) {
+            return this.PostToDOMElement('YSDK_RTB_CREATE_BANNER', payload);
+        }
+
+        _rtbCreateStickyBanner (payload) {
+            return this.PostToDOMElement('YSDK_RTB_CREATE_STICKY_BANNER', payload);
+        }
+
+        _rtbDestroyBanner (payload) {
+            return this.PostToDOMElement('YSDK_RTB_DESTROY_BANNER', payload);
+        }
+
+        _rtbRefreshBanner (payload) {
+            return this.PostToDOMElement('YSDK_RTB_REFRESH_BANNER', payload);
+        }
+
+        /**
+         * @override
+         * Plugin must be registered as world instance
+         * and required to be rendered on layout, but :) just ignore it
+         */
+        Tick () {
+            return false;
+        }
+    };
+
+    if (globalThis.C3) {
+        C3.Plugins.Eponesh_YandexSDK.Instance = Instance;
+    }
+
+    Instance;
+}
+
+}
+
+{
+"use strict";
+{
+    function each (runtime, array, cb) {
+        const eventSheetManager = runtime.GetEventSheetManager();
+        const currentEvent = runtime.GetCurrentEvent();
+        const solModifiers = currentEvent.GetSolModifiers();
+        const eventStack = runtime.GetEventStack();
+        // Get current stack frame and push new one
+        const oldFrame = eventStack.GetCurrentStackFrame();
+        const newFrame = eventStack.Push(currentEvent);
+
+        array.forEach((item) => {
+            cb(item);
+
+            // Push a copy of the current SOL
+            eventSheetManager.PushCopySol(solModifiers);
+            // Retrigger the current event, running a single loop iteration
+            currentEvent.Retrigger(oldFrame, newFrame);
+            // Pop the current SOL
+            eventSheetManager.PopSol(solModifiers);
+        });
+
+        // Pop the event stack frame
+        eventStack.Pop();
+    }
+
+    var Cnds = {
+        OnAdvClosed() {
+            return true;
+        },
+
+        OnFirstAdvClosed() {
+            return true;
+        },
+
+        OnSignInFailed() {
+            return true;
+        },
+
+        OnSignInSuccess() {
+            return true;
+        },
+
+        IsSignedIn() {
+            return !!this.player;
+        },
+
+        IsPurchasesAvailable() {
+            return !!this.payments;
+        },
+
+        HasAnyPurchase() {
+            return this.purchases.length > 0;
+        },
+
+        OnBuySuccess(purchaseId) {
+            return purchaseId === this.lastPurchaseID;
+        },
+
+        OnBuyFailed(purchaseId) {
+            return purchaseId === this.lastPurchaseID;
+        },
+
+        OnAnyBuySuccess() {
+            return true;
+        },
+
+        OnAnyBuyFailed() {
+            return true;
+        },
+
+        OnPurchasesLoadSuccess() {
+            return true;
+        },
+
+        OnPurchasesLoadFailed() {
+            return true;
+        },
+
+        OnCatalogLoadSuccess() {
+            return true;
+        },
+
+        OnCatalogLoadFailed() {
+            return true;
+        },
+
+        HasPurchase(productId) {
+            return this.purchases.some(p => p.productID === productId);
+        },
+
+        EachProduct() {
+            each(this._runtime, this.products, (product) => {
+                this.currentProductID = product.productID;
+                this.currentProductTitle = product.title;
+                this.currentProductDescription = product.description;
+                this.currentProductImage = product.imageURI;
+                this.currentProductPrice = product.price;
+            });
+
+            return false;
+        },
+
+        EachPurchase() {
+            each(this._runtime, this.purchases, (purchase) => {
+                this.currentPurchaseID = purchase.productID;
+                this.currentPurchaseToken = purchase.purchaseToken;
+                this.currentPurchaseSign = purchase.signature;
+            });
+
+            return false;
+        },
+
+        OnRewardedVideoOpen() {
+            return true;
+        },
+
+        OnRewardedVideoClose() {
+            return true;
+        },
+
+        OnRewardedVideoError() {
+            return true;
+        },
+
+        OnRewardedVideoReward() {
+            return true;
+        },
+
+        IsRewardedVideoPlaying() {
+            return this.isRewardedVideoPlaying;
+        },
+
+        OnIncrementPlayerStateFailed(key) {
+            return key === this.lastStateKey;
+        },
+
+        OnSetPlayerStateFailed(key) {
+            return key === this.lastStateKey;
+        },
+
+        OnSetPlayerDataFailed(key) {
+            return key === this.lastDataKey;
+        },
+
+        OnLoadPlayerStatsSuccess() {
+            return true;
+        },
+
+        OnLoadPlayerStatsFailed() {
+            return true;
+        },
+
+        OnLoadPlayerDataSuccess() {
+            return true;
+        },
+
+        OnLoadPlayerDataFailed() {
+            return true;
+        },
+
+        OnConsumeSuccess(purchaseId) {
+            return purchaseId === this.lastPurchaseID;
+        },
+
+        OnConsumeFailed(purchaseId) {
+            return purchaseId === this.lastPurchaseID;
+        },
+
+        OnAnyConsumeSuccess() {
+            return true;
+        },
+
+        OnAnyConsumeFailed() {
+            return true;
+        },
+
+        OnBannerDisplayed(bannerID) {
+            return bannerID === this.lastBannerID;
+        },
+
+        OnBannerDestroyed(bannerID) {
+            return bannerID === this.lastBannerID;
+        },
+
+        IsBannerDisplaying(bannerID) {
+            const banner = this.banners[bannerID];
+            return !!(banner && banner.displayed);
+        },
+    };
+
+    if (globalThis.C3) {
+        C3.Plugins.Eponesh_YandexSDK.Cnds = Cnds;
+    }
+
+    Cnds;
+}
+
+}
+
+{
+"use strict";
+{
+    var Acts = {
+        async ShowFullscreen() {
+            await this.ready;
+            this._showFullscreenAdv();
+        },
+
+        async CreateBanner(id, x = 0, y = 0, width = 0, height = 0, styles) {
+            if (!this.banners[id]) {
+                this.banners[id] = { displayed: false };
+                await this.rtbReady;
+                this._rtbCreateBanner({ id, x, y, width, height, styles });
+            }
+        },
+
+        async CreateStickyBanner(id, position = 0, width = 0, height = 0, styles) {
+            if (!this.banners[id]) {
+                this.banners[id] = { displayed: false };
+                await this.rtbReady;
+                this._rtbCreateStickyBanner({ id, position, width, height, styles });
+            }
+        },
+
+        async DisplayBanner(id) {
+            if (this.banners[id]) {
+                await this.rtbReady;
+                this._rtbDisplayBanner({ id });
+            }
+        },
+
+        async RefreshBanner(id) {
+            if (this.banners[id]) {
+                await this.rtbReady;
+                this.banners[id].displayed = false;
+                this._rtbRefreshBanner({ id });
+            }
+        },
+
+        async DestroyBanner(id) {
+            if (this.banners[id]) {
+                await this.rtbReady;
+                this.banners[id].displayed = false;
+                this.lastBannerID = id;
+                this._rtbDestroyBanner({ id });
+                this.Trigger(this.conditions.OnBannerDestroyed);
+            }
+        },
+
+        async ReachGoal(target) {
+            await this.metricaReady;
+            console.log('Reach Goal: ', target);
+            this._reachGoal({ target });
+        },
+
+        async SignIn() {
+            await this.getPlayer();
+        },
+
+        async LoadCatalog() {
+            try {
+                await this.paymentsReady;
+                this.products = await this._getCatalog();
+                this.Trigger(this.conditions.OnCatalogLoadSuccess);
+            } catch (err) {
+                this.Trigger(this.conditions.OnCatalogLoadFailed);
+            }
+        },
+
+        async LoadPurchases(isAutoSignIn) {
+            if (isAutoSignIn) {
+                try {
+                    await this.getPlayer();
+                } catch (err) {
+                    this.Trigger(this.conditions.OnPurchasesLoadFailed);
+                }
+            }
+
+            try {
+                await this.paymentsReady;
+                this.purchases = await this._getPurchases();
+                this.Trigger(this.conditions.OnPurchasesLoadSuccess);
+            } catch (err) {
+                this.Trigger(this.conditions.OnPurchasesLoadFailed);
+            }
+        },
+
+        async Buy(purchaseId) {
+            try {
+                await this.paymentsReady;
+                const purchase = await this._purchase({ purchaseId });
+                this.purchases.push(purchase);
+                this.lastPurchaseID = purchaseId;
+                this.lastPurchaseToken = purchase.purchaseToken;
+                this.Trigger(this.conditions.OnAnyBuySuccess);
+                this.Trigger(this.conditions.OnBuySuccess);
+            } catch (err) {
+                this.lastPurchaseID = purchaseId;
+                this.Trigger(this.conditions.OnAnyBuyFailed);
+                this.Trigger(this.conditions.OnBuyFailed);
+            }
+        },
+
+        async ShowRewardedVideo() {
+            await this.ready;
+            try {
+                await this._showRewardedVideo();
+            } catch (error) {
+                this.Trigger(this.conditions.OnRewardedVideoError);
+            }
+        },
+
+        async ConsumePurchase(id) {
+            const purchase = this.purchases.find(p => p.productID === id);
+            try {
+                await this.paymentsReady;
+                await this._consumePurchase({ purchaseToken: purchase.purchaseToken });
+                this.purchases = this.purchases.filter(p => p.productID !== id);
+                this.lastPurchaseID = id;
+                this.lastPurchaseToken = purchase ? purchase.token : '';
+                this.Trigger(this.conditions.OnAnyConsumeSuccess);
+                this.Trigger(this.conditions.OnConsumeSuccess);
+            } catch (err) {
+                this.lastPurchaseID = id;
+                this.lastPurchaseToken = purchase ? purchase.token : '';
+                this.Trigger(this.conditions.OnAnyConsumeFailed);
+                this.Trigger(this.conditions.OnConsumeFailed);
+            }
+        },
+
+        async IncrementState(key, value) {
+            if (this.playerStats[key]) {
+                this.playerStats[key] += value;
+            } else {
+                this.playerStats[key] = value;
+            }
+
+            try {
+                await this._incrementPlayerStats({ [key]: value });
+                const stats = await this._getPlayerStats([key]);
+                this.playerStats[key] = stats[key] || 0;
+            } catch (error) {
+                this.lastStateKey = key;
+                this.Trigger(this.conditions.OnIncrementPlayerStateFailed);
+            }
+        },
+
+        async SetState(key, value) {
+            this.playerStats[key] = value;
+            try {
+                await this._setPlayerStats( {[key]: value });
+                const stats = await this._getPlayerStats([key]);
+                this.playerStats[key] = stats[key] || 0;
+            } catch (error) {
+                this.lastStateKey = key;
+                this.Trigger(this.conditions.OnSetPlayerStateFailed);
+            }
+        },
+
+        async SetData(key, value) {
+            this.playerData[key] = value;
+            try {
+                await this._setPlayerData({ [key]: value });
+                const data = await this._getPlayerData([key]);
+                this.playerData[key] = data[key] || '';
+            } catch (error) {
+                this.lastDataKey = key;
+                this.Trigger(this.conditions.OnSetPlayerDataFailed);
+            }
+        },
+
+        async LoadStats() {
+            try {
+                this.playerStats = (await this._getPlayerFullStats()) || {};
+                this.Trigger(this.conditions.OnLoadPlayerStatsSuccess);
+            } catch (err) {
+                this.Trigger(this.conditions.OnLoadPlayerStatsFailed);
+            }
+        },
+
+        async LoadData() {
+            try {
+                this.playerData = (await this._getPlayerFullData()) || {};
+                this.Trigger(this.conditions.OnLoadPlayerDataSuccess);
+            } catch (err) {
+                this.Trigger(this.conditions.OnLoadPlayerDataFailed);
+            }
+        }
+    };
+
+    if (globalThis.C3) {
+        C3.Plugins.Eponesh_YandexSDK.Acts = Acts;
+    }
+
+    Acts;
+}
+
+}
+
+{
+"use strict";
+{
+    var Exps = {
+        PlayerName() {
+            return this.player.name;
+        },
+
+        PlayerId() {
+            return this.player.id;
+        },
+
+        PlayerPhotoSmall() {
+            return this.player.photoSmall;
+        },
+
+        PlayerPhotoMedium() {
+            return this.player.photoMedium;
+        },
+
+        PlayerPhotoLarge() {
+            return this.player.photoLarge;
+        },
+
+        CurrentProductID() {
+            return this.currentProductID || '';
+        },
+
+        CurrentProductTitle() {
+            return this.currentProductTitle || '';
+        },
+
+        CurrentProductImage() {
+            return this.currentProductImage || '';
+        },
+
+        CurrentProductDescription() {
+            return this.currentProductDescription || '';
+        },
+
+        CurrentProductPrice() {
+            return this.currentProductPrice || 0;
+        },
+
+        CurrentPurchaseID() {
+            return this.currentPurchaseID || '';
+        },
+
+        CurrentPurchaseToken() {
+            return this.currentPurchaseToken || '';
+        },
+
+        CurrentPurchaseSign() {
+            return this.currentPurchaseSign || '';
+        },
+
+        GetPurchaseToken(productId) {
+            return this.getPurchase(productId).purchaseToken || '';
+        },
+
+        LastPurchaseId() {
+            return this.lastPurchaseID || '';
+        },
+
+        LastPurchaseToken() {
+            return this.lastPurchaseToken || '';
+        },
+
+        GetProductTitle(productId) {
+            return this.getProduct(productId).title || '';
+        },
+
+        GetProductDescription(productId) {
+            return this.getProduct(productId).description || '';
+        },
+
+        GetProductImage(productId) {
+            return this.getProduct(productId).imageURI || '';
+        },
+
+        GetProductPrice(productId) {
+            return parseFloat(this.getProduct(productId).price || 0);
+        },
+
+        LastPlayerStateKey() {
+            return this.lastStateKey || '';
+        },
+
+        LastPlayerDataKey() {
+            return this.lastDataKey || '';
+        },
+
+        GetPlayerState(key) {
+            return this.playerStats[key] || 0;
+        },
+
+        GetPlayerData(key) {
+            return this.playerData[key] || '';
+        },
+
+        LastBanner() {
+            return this.lastBannerID;
+        }
+    };
+
+    if (globalThis.C3) {
+        C3.Plugins.Eponesh_YandexSDK.Exps = Exps;
+    }
+
+    Exps;
+}
+
+}
+
+{
+'use strict';
+{
+    C3.Plugins.Eponesh_GameScore = class GameScorePlugin extends C3.SDKPluginBase {
+        constructor(opts) {
+            super(opts, 'Eponesh_GameScore');
+        }
+
+        Release() {
+            super.Release();
+        }
+    };
+}
+
+}
+
+{
+'use strict';
+{
+    C3.Plugins.Eponesh_GameScore.Type = class GameScoreType extends C3.SDKTypeBase {
+        constructor(objectClass) {
+            super(objectClass);
+        }
+
+        Release() {
+            super.Release();
+        }
+
+        OnCreate() {}
+    };
+}
+
+}
+
+{
+'use strict';
+{
+    const SERVER_HOST = 'https://gs.eponesh.com';
+    // const SERVER_HOST = 'https://gs.eponesh.com';
+
+    C3.Plugins.Eponesh_GameScore.Instance = class GameScoreInstance extends C3.SDKInstanceBase {
+        constructor(inst, properties) {
+            super(inst);
+
+            this.mappers = {
+                language: ['en', 'ru', 'fr', 'it', 'de', 'es', 'zh', 'pt', 'ko', 'ja'],
+                avatarGenerator: [
+                    'dicebear_retro',
+                    'dicebear_identicon',
+                    'dicebear_human',
+                    'dicebear_micah',
+                    'dicebear_bottts',
+                    'icotar',
+                    'robohash_robots',
+                    'robohash_cats'
+                ],
+                withMe: ['none', 'first', 'last'],
+                platform: ['YANDEX', 'VK', 'NONE', 'OK', 'GAME_MONETIZE', 'CRAZY_GAMES', 'GAME_DISTRIBUTION'],
+                compare: [
+                    (a, b) => a === b,
+                    (a, b) => a !== b,
+                    (a, b) => a < b,
+                    (a, b) => a <= b,
+                    (a, b) => a > b,
+                    (a, b) => a >= b
+                ]
+            };
+
+            this.conditions = C3.Plugins.Eponesh_GameScore.Cnds;
+            this.actions = C3.Plugins.Eponesh_GameScore.Acts;
+
+            this.awaiters = {
+                player: {},
+                gs: {}
+            };
+            this.awaiters.gs.ready = new Promise((res, rej) => {
+                this.awaiters.gs.done = res;
+                this.awaiters.gs.abort = rej;
+            });
+            this.awaiters.player.ready = new Promise((res, rej) => {
+                this.awaiters.player.done = res;
+                this.awaiters.player.abort = rej;
+            });
+
+            this.leaderboard = [];
+            this.currentLeaderboardIndex = 0;
+            this.currentLeaderboardPlayer = {};
+            this.lastLeaderboardTag = '';
+            this.lastLeaderboardPlayerRatingTag = '';
+            this.leaderboardPlayerPosition = 0;
+
+            this.currentPlayerFieldKey = '';
+            this.currentPlayerFieldType = '';
+            this.currentPlayerFieldName = '';
+            this.currentPlayerFieldValue = '';
+
+            this.currentPlayerFieldVariantValue = '';
+            this.currentPlayerFieldVariantName = '';
+            this.currentPlayerFieldVariantIndex = 0;
+
+            this.achievements = [];
+            this.achievementsGroups = [];
+            this.playerAchievements = [];
+
+            this.currentAchievementIndex = 0;
+            this.currentAchievementId = 0;
+            this.currentAchievementTag = '';
+            this.currentAchievementName = '';
+            this.currentAchievementDescription = '';
+            this.currentAchievementIcon = '';
+            this.currentAchievementIconSmall = '';
+            this.currentAchievementRare = 'COMMON';
+            this.currentAchievementUnlocked = false;
+
+            this.currentAchievementsGroupIndex = 0;
+            this.currentAchievementsGroupId = 0;
+            this.currentAchievementsGroupTag = '';
+            this.currentAchievementsGroupName = '';
+            this.currentAchievementsGroupDescription = '';
+
+            this.currentPlayerAchievementIndex = 0;
+            this.currentPlayerAchievementId = 0;
+            this.currentPlayerAchievementUnlockDate = '';
+
+            this.isUnlockAchievementSuccess = false;
+            this.unlockAchievementError = '';
+
+            this.unlockedAchievementId = 0;
+            this.unlockedAchievementTag = '';
+            this.unlockedAchievementName = '';
+            this.unlockedAchievementDescription = '';
+            this.unlockedAchievementIcon = '';
+            this.unlockedAchievementIconSmall = '';
+            this.unlockedAchievementRare = 'COMMON';
+
+            this.products = [];
+            this.playerPurchases = [];
+
+            this.currentProductIndex = 0;
+            this.currentProductId = 0;
+            this.currentProductTag = '';
+            this.currentProductName = '';
+            this.currentProductDescription = '';
+            this.currentProductIcon = '';
+            this.currentProductIconSmall = '';
+            this.currentProductPrice = 0;
+            this.currentProductCurrency = '';
+            this.currentProductCurrencySymbol = '';
+            this.currentProductPurchases = 0;
+
+            this.isPurchaseProductSuccess = false;
+            this.purchaseProductError = '';
+            this.purchasedProductId = 0;
+            this.purchasedProductTag = '';
+
+            this.isConsumeProductSuccess = false;
+            this.consumeProductError = '';
+            this.consumedProductId = 0;
+            this.consumedProductTag = '';
+
+            this.isLastAdSuccess = false;
+            this.isLastShareSuccess = false;
+            this.isLastCommunityJoinSuccess = false;
+            this.isReady = false;
+            this.isPlayerReady = false;
+
+            this.projectId = Number(properties[0] || 0);
+            this.publicToken = properties[1];
+            this.showPreloaderOnStart = properties[2];
+            this.shouldWaitPlayerOnLoad = properties[3];
+
+            this._runtime.AddLoadPromise(this.awaiters.gs.ready);
+            if (this.shouldWaitPlayerOnLoad) {
+                this._runtime.AddLoadPromise(this.awaiters.player.ready);
+            }
+
+            this._runtime.Dispatcher().addEventListener('afterfirstlayoutstart', () => {
+                if (this.isReady) {
+                    this.Trigger(this.conditions.OnReady);
+                }
+
+                if (this.isPlayerReady) {
+                    this.Trigger(this.conditions.OnPlayerReady);
+                }
+            });
+
+            this.loadLib();
+        }
+
+        onError() {
+            const stub = () => Promise.resolve({});
+            this.awaiters.gs.done();
+            this.awaiters.player.done();
+            this.gs = {
+                on() {},
+                changeLanguage: stub,
+                changeAvatarGenerator: stub,
+                loadOverlay: stub,
+                isDev: false,
+                language: 'en',
+                avatarGenerator: 'dicebear_retro',
+                app: {
+                    title: '',
+                    description: '',
+                    image: '',
+                    url: ''
+                },
+                analytics: {
+                    on() {},
+                    hit() {},
+                    goal() {}
+                },
+                platform: {
+                    on() {},
+                    hasIntegratedAuth: false,
+                    type: 'NONE'
+                },
+                socials: {
+                    isSupportsNativeShare: false,
+                    isSupportsNativePosts: false,
+                    isSupportsNativeInvite: false,
+                    share: stub,
+                    post: stub,
+                    invite: stub
+                },
+                leaderboard: {
+                    on() {},
+                    open: stub,
+                    fetch: stub,
+                    fetchPlayerRating: stub
+                },
+                achievements: {
+                    on() {},
+                    has() {},
+                    open: stub,
+                    fetch: stub,
+                    unlock: stub
+                },
+                payments: {
+                    isAvailable: false,
+                    on() {},
+                    has() {},
+                    fetchProducts: stub,
+                    purchase: stub,
+                    consume: stub
+                },
+                fullscreen: {
+                    isEnabled: false,
+                    on() {},
+                    open() {},
+                    close() {},
+                    toggle() {}
+                },
+                ads: {
+                    isFullscreenAvailable: false,
+                    isRewardedAvailable: false,
+                    isPreloaderAvailable: false,
+                    isStickyAvailable: false,
+                    isAdblockEnabled: false,
+                    on() {},
+                    showFullscreen: stub,
+                    showRewardedVideo: stub,
+                    showPreloader: stub,
+                    showSticky: stub,
+                    closeSticky: stub,
+                    refreshSticky: stub
+                },
+                player: {
+                    isStub: true,
+                    isLoggedIn: false,
+                    id: 0,
+                    name: '',
+                    avatar: '',
+                    on() {},
+                    sync: stub,
+                    load: stub,
+                    login: stub,
+                    fetchFields: stub,
+                    getField: stub,
+                    getFieldName: stub,
+                    getFieldVariantName: stub,
+                    add: stub,
+                    has: stub,
+                    get: stub,
+                    set: stub,
+                    toggle: stub,
+                    reset: stub,
+                    remove: stub,
+                    fields: []
+                }
+            };
+            this.isReady = true;
+            this.Trigger(this.conditions.OnReady);
+            this.isPlayerReady = true;
+            this.Trigger(this.conditions.OnPlayerReady);
+        }
+
+        loadLib() {
+            try {
+                window.onGSInit = (gs) => gs.ready.then(() => this.init(gs)).catch(() => this.onError());
+                ((d) => {
+                    var t = d.getElementsByTagName('script')[0];
+                    var s = d.createElement('script');
+                    s.src = `${SERVER_HOST}/sdk/game-score.js?projectId=${this.projectId}&publicToken=${this.publicToken}&callback=onGSInit`;
+                    s.async = true;
+                    s.onerror = () => this.onError();
+                    t.parentNode.insertBefore(s, t);
+                })(document);
+            } catch (err) {
+                console.error(err);
+                this.onError();
+            }
+        }
+
+        init(gs) {
+            this.gs = gs;
+
+            // player
+            this.gs.player.on('ready', () => {
+                this.isPlayerReady = true;
+                this.awaiters.player.done();
+                this.Trigger(this.conditions.OnPlayerReady);
+            });
+            this.gs.player.on('change', () => this.Trigger(this.conditions.OnPlayerChange));
+            this.gs.player.on('sync', (success) => {
+                this.Trigger(success ? this.conditions.OnPlayerSyncComplete : this.conditions.OnPlayerSyncError);
+            });
+            this.gs.player.on('load', (success) => {
+                this.Trigger(success ? this.conditions.OnPlayerLoadComplete : this.conditions.OnPlayerLoadError);
+            });
+            this.gs.player.on('login', (success) => {
+                this.Trigger(success ? this.conditions.OnPlayerLoginComplete : this.conditions.OnPlayerLoginError);
+            });
+            this.gs.player.on('fetchFields', (success) => {
+                this.Trigger(
+                    success ? this.conditions.OnPlayerFetchFieldsComplete : this.conditions.OnPlayerFetchFieldsError
+                );
+            });
+
+            // leaderboard
+            this.gs.leaderboard.on('open', () => this.Trigger(this.conditions.OnLeaderboardOpen));
+
+            // achievements
+            this.gs.achievements.on('open', () => this.Trigger(this.conditions.OnAchievementsOpen));
+            this.gs.achievements.on('close', () => this.Trigger(this.conditions.OnAchievementsClose));
+
+            // fullscreen
+            this.gs.fullscreen.on('open', () => this.Trigger(this.conditions.OnFullscreenOpen));
+            this.gs.fullscreen.on('close', () => this.Trigger(this.conditions.OnFullscreenClose));
+            this.gs.fullscreen.on('change', () => this.Trigger(this.conditions.OnFullscreenChange));
+
+            // ads
+            this.gs.ads.on('start', () => this.Trigger(this.conditions.OnAdsStart));
+            this.gs.ads.on('close', (success) => {
+                this.isLastAdSuccess = success;
+                this.Trigger(this.conditions.OnAdsClose);
+            });
+
+            this.gs.ads.on('fullscreen:start', () => this.Trigger(this.conditions.OnAdsFullscreenStart));
+            this.gs.ads.on('fullscreen:close', () => this.Trigger(this.conditions.OnAdsFullscreenClose));
+
+            this.gs.ads.on('preloader:start', () => this.Trigger(this.conditions.OnAdsPreloaderStart));
+            this.gs.ads.on('preloader:close', () => this.Trigger(this.conditions.OnAdsPreloaderClose));
+
+            this.gs.ads.on('rewarded:start', () => this.Trigger(this.conditions.OnAdsRewardedStart));
+            this.gs.ads.on('rewarded:close', () => this.Trigger(this.conditions.OnAdsRewardedClose));
+            this.gs.ads.on('rewarded:reward', () => this.Trigger(this.conditions.OnAdsRewardedReward));
+
+            this.gs.ads.on('sticky:start', () => this.Trigger(this.conditions.OnAdsStickyStart));
+            this.gs.ads.on('sticky:close', () => this.Trigger(this.conditions.OnAdsStickyClose));
+            this.gs.ads.on('sticky:refresh', () => this.Trigger(this.conditions.OnAdsStickyRefresh));
+            this.gs.ads.on('sticky:render', () => this.Trigger(this.conditions.OnAdsStickyRender));
+
+            // socials
+            this.gs.socials.on('share', (success) => {
+                this.isLastShareSuccess = success;
+                this.Trigger(this.conditions.OnSocialsShare);
+            });
+            this.gs.socials.on('post', (success) => {
+                this.isLastShareSuccess = success;
+                this.Trigger(this.conditions.OnSocialsPost);
+            });
+            this.gs.socials.on('invite', (success) => {
+                this.isLastShareSuccess = success;
+                this.Trigger(this.conditions.OnSocialsInvite);
+            });
+            this.gs.socials.on('joinCommunity', (success) => {
+                this.isLastCommunityJoinSuccess = success;
+                this.Trigger(this.conditions.OnSocialsJoinCommunity);
+            });
+
+            // gs
+            this.gs.on('change:language', () => this.Trigger(this.conditions.OnChangeLanguage));
+            this.gs.on('change:avatarGenerator', () => this.Trigger(this.conditions.OnChangeAvatarGenerator));
+            this.gs.on('overlay:ready', () => this.Trigger(this.conditions.OnOverlayReady));
+
+            // ready
+            this.isReady = true;
+            this.Trigger(this.conditions.OnReady);
+            this.awaiters.gs.done();
+
+            if (this.showPreloaderOnStart) {
+                this.gs.ads.showPreloader();
+            }
+        }
+
+        Release() {
+            super.Release();
+        }
+
+        SaveToJson() {
+            return {
+                leaderboard: this.leaderboard,
+                currentLeaderboardIndex: this.currentLeaderboardIndex,
+                currentLeaderboardPlayer: this.currentLeaderboardPlayer,
+                lastLeaderboardTag: this.lastLeaderboardTag,
+                lastLeaderboardPlayerRatingTag: this.lastLeaderboardPlayerRatingTag,
+                leaderboardPlayerPosition: this.leaderboardPlayerPosition,
+
+                currentPlayerFieldKey: this.currentPlayerFieldKey,
+                currentPlayerFieldType: this.currentPlayerFieldType,
+                currentPlayerFieldName: this.currentPlayerFieldName,
+                currentPlayerFieldValue: this.currentPlayerFieldValue,
+
+                currentPlayerFieldVariantValue: this.currentPlayerFieldVariantValue,
+                currentPlayerFieldVariantName: this.currentPlayerFieldVariantName,
+                currentPlayerFieldVariantIndex: this.currentPlayerFieldVariantIndex,
+
+                isLastAdSuccess: this.isLastAdSuccess,
+                isLastShareSuccess: this.isLastShareSuccess,
+                isLastCommunityJoinSuccess: this.isLastCommunityJoinSuccess,
+                isReady: this.isReady,
+                isPlayerReady: this.isPlayerReady,
+
+                achievements: this.achievements,
+                achievementsGroups: this.achievementsGroups,
+                playerAchievements: this.playerAchievements,
+
+                currentAchievementIndex: this.currentAchievementIndex,
+                currentAchievementId: this.currentAchievementId,
+                currentAchievementTag: this.currentAchievementTag,
+                currentAchievementName: this.currentAchievementName,
+                currentAchievementDescription: this.currentAchievementDescription,
+                currentAchievementIcon: this.currentAchievementIcon,
+                currentAchievementIconSmall: this.currentAchievementIconSmall,
+                currentAchievementRare: this.currentAchievementRare,
+                currentAchievementUnlocked: this.currentAchievementUnlocked,
+
+                currentAchievementsGroupIndex: this.currentAchievementsGroupIndex,
+                currentAchievementsGroupId: this.currentAchievementsGroupId,
+                currentAchievementsGroupTag: this.currentAchievementsGroupTag,
+                currentAchievementsGroupName: this.currentAchievementsGroupName,
+                currentAchievementsGroupDescription: this.currentAchievementsGroupDescription,
+
+                currentPlayerAchievementIndex: this.currentPlayerAchievementIndex,
+                currentPlayerAchievementId: this.currentPlayerAchievementId,
+                currentPlayerAchievementUnlockDate: this.currentPlayerAchievementUnlockDate,
+
+                isUnlockAchievementSuccess: this.isUnlockAchievementSuccess,
+                unlockAchievementError: this.unlockAchievementError,
+
+                unlockedAchievementId: this.unlockedAchievementId,
+                unlockedAchievementTag: this.unlockedAchievementTag,
+                unlockedAchievementName: this.unlockedAchievementName,
+                unlockedAchievementDescription: this.unlockedAchievementDescription,
+                unlockedAchievementIcon: this.unlockedAchievementIcon,
+                unlockedAchievementIconSmall: this.unlockedAchievementIconSmall,
+                unlockedAchievementRare: this.unlockedAchievementRare,
+
+                products: this.products,
+                playerPurchases: this.playerPurchases,
+
+                currentProductIndex: this.currentProductIndex,
+                currentProductId: this.currentProductId,
+                currentProductTag: this.currentProductTag,
+                currentProductName: this.currentProductName,
+                currentProductDescription: this.currentProductDescription,
+                currentProductIcon: this.currentProductIcon,
+                currentProductIconSmall: this.currentProductIconSmall,
+                currentProductPrice: this.currentProductPrice,
+                currentProductCurrency: this.currentProductCurrency,
+                currentProductCurrencySymbol: this.currentProductCurrencySymbol,
+                currentProductPurchases: this.currentProductPurchases,
+
+                isPurchaseProductSuccess: this.isPurchaseProductSuccess,
+                purchaseProductError: this.purchaseProductError,
+                purchasedProductId: this.purchasedProductId,
+                purchasedProductTag: this.purchasedProductTag,
+
+                isConsumeProductSuccess: this.isConsumeProductSuccess,
+                consumeProductError: this.consumeProductError,
+                consumedProductId: this.consumedProductId,
+                consumedProductTag: this.consumedProductTag
+            };
+        }
+
+        LoadFromJson(o) {
+            this.leaderboard = o.leaderboard;
+            this.currentLeaderboardIndex = o.currentLeaderboardIndex;
+            this.currentLeaderboardPlayer = o.currentLeaderboardPlayer;
+            this.lastLeaderboardTag = o.lastLeaderboardTag;
+            this.lastLeaderboardPlayerRatingTag = o.lastLeaderboardPlayerRatingTag;
+            this.leaderboardPlayerPosition = o.leaderboardPlayerPosition || 0;
+
+            this.currentPlayerFieldKey = o.currentPlayerFieldKey;
+            this.currentPlayerFieldType = o.currentPlayerFieldType;
+            this.currentPlayerFieldName = o.currentPlayerFieldName;
+            this.currentPlayerFieldValue = o.currentPlayerFieldValue;
+
+            this.currentPlayerFieldVariantValue = o.currentPlayerFieldVariantValue;
+            this.currentPlayerFieldVariantName = o.currentPlayerFieldVariantName;
+            this.currentPlayerFieldVariantIndex = o.currentPlayerFieldVariantIndex;
+
+            this.isLastAdSuccess = o.isLastAdSuccess;
+            this.isLastShareSuccess = o.isLastShareSuccess;
+            this.isLastCommunityJoinSuccess = o.isLastCommunityJoinSuccess;
+            this.isReady = o.isReady;
+            this.isPlayerReady = o.isPlayerReady;
+
+            this.achievements = o.achievements || [];
+            this.achievementsGroups = o.achievementsGroups || [];
+            this.playerAchievements = o.playerAchievements || [];
+
+            this.currentAchievementIndex = o.currentAchievementIndex || 0;
+            this.currentAchievementId = o.currentAchievementId || 0;
+            this.currentAchievementTag = o.currentAchievementTag || '';
+            this.currentAchievementName = o.currentAchievementName || '';
+            this.currentAchievementDescription = o.currentAchievementDescription || '';
+            this.currentAchievementIcon = o.currentAchievementIcon || '';
+            this.currentAchievementIconSmall = o.currentAchievementIconSmall || '';
+            this.currentAchievementRare = o.currentAchievementRare || 'COMMON';
+            this.currentAchievementUnlocked = o.currentAchievementUnlocked || false;
+
+            this.currentAchievementsGroupIndex = o.currentAchievementsGroupIndex || 0;
+            this.currentAchievementsGroupId = o.currentAchievementsGroupId || 0;
+            this.currentAchievementsGroupTag = o.currentAchievementsGroupTag || '';
+            this.currentAchievementsGroupName = o.currentAchievementsGroupName || '';
+            this.currentAchievementsGroupDescription = o.currentAchievementsGroupDescription || '';
+
+            this.currentPlayerAchievementIndex = o.currentPlayerAchievementIndex || 0;
+            this.currentPlayerAchievementId = o.currentPlayerAchievementId || 0;
+            this.currentPlayerAchievementUnlockDate = o.currentPlayerAchievementUnlockDate || '';
+
+            this.isUnlockAchievementSuccess = o.isUnlockAchievementSuccess || false;
+            this.unlockAchievementError = o.unlockAchievementError || '';
+
+            this.unlockedAchievementId = o.unlockedAchievementId || 0;
+            this.unlockedAchievementTag = o.unlockedAchievementTag || '';
+            this.unlockedAchievementName = o.unlockedAchievementName || '';
+            this.unlockedAchievementDescription = o.unlockedAchievementDescription || '';
+            this.unlockedAchievementIcon = o.unlockedAchievementIcon || '';
+            this.unlockedAchievementIconSmall = o.unlockedAchievementIconSmall || '';
+            this.unlockedAchievementRare = o.unlockedAchievementRare || 'COMMON';
+
+            this.products = o.products || [];
+            this.playerPurchases = o.playerPurchases || [];
+
+            this.currentProductIndex = o.currentProductIndex || 0;
+            this.currentProductId = o.currentProductId || 0;
+            this.currentProductTag = o.currentProductTag || '';
+            this.currentProductName = o.currentProductName || '';
+            this.currentProductDescription = o.currentProductDescription || '';
+            this.currentProductIcon = o.currentProductIcon || '';
+            this.currentProductIconSmall = o.currentProductIconSmall || '';
+            this.currentProductPrice = o.currentProductPrice || 0;
+            this.currentProductCurrency = o.currentProductCurrency || '';
+            this.currentProductCurrencySymbol = o.currentProductCurrencySymbol || '';
+            this.currentProductPurchases = o.currentProductPurchases || 0;
+
+            this.isPurchaseProductSuccess = o.isPurchaseProductSuccess || false;
+            this.purchaseProductError = o.purchaseProductError || '';
+            this.purchasedProductId = o.purchasedProductId || 0;
+            this.purchasedProductTag = o.purchasedProductTag || '';
+
+            this.isConsumeProductSuccess = o.isConsumeProductSuccess || false;
+            this.consumeProductError = o.consumeProductError || '';
+            this.consumedProductId = o.consumedProductId || 0;
+            this.consumedProductTag = o.consumedProductTag || '';
+        }
+
+        GetDebuggerProperties() {
+            if (!this.isPlayerReady) {
+                return [];
+            }
+            return [
+                {
+                    title: 'GS - Base',
+                    properties: [
+                        {
+                            name: 'Language',
+                            value: this.gs.language
+                        },
+                        {
+                            name: 'Avatar Generator',
+                            value: this.gs.avatarGenerator
+                        },
+                        {
+                            name: 'Platform',
+                            value: this.gs.platform.type
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Ads',
+                    properties: [
+                        {
+                            name: 'Last Ad Success',
+                            value: this.isLastAdSuccess
+                        },
+                        {
+                            name: 'Adblock Enabled',
+                            value: this.gs.ads.isAdblockEnabled
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Leaderboards',
+                    properties: [
+                        {
+                            name: 'Player Position',
+                            value: this.leaderboardPlayerPosition
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Player',
+                    properties: [
+                        {
+                            name: 'ID',
+                            value: this.gs.player.id
+                        },
+                        {
+                            name: 'Logged In By Platform',
+                            value: this.gs.player.isLoggedInByPlatform
+                        },
+                        {
+                            name: 'Is Stub',
+                            value: this.gs.player.isStub
+                        },
+                        ...this.gs.player.fields.map((f) => ({
+                            name: this.gs.player.getFieldName(f.key),
+                            value: this.gs.player.get(f.key),
+                            onedit: (v) => this.CallAction(this.actions.PlayerSet, f.key, v)
+                        }))
+                    ]
+                },
+                {
+                    title: 'GS - Achievements Loop',
+                    properties: [
+                        {
+                            name: 'Current Achievement Index',
+                            value: this.currentAchievementIndex
+                        },
+                        {
+                            name: 'Current Achievement ID',
+                            value: this.currentAchievementId
+                        },
+                        {
+                            name: 'Current Achievement Tag',
+                            value: this.currentAchievementTag
+                        },
+                        {
+                            name: 'Current Achievement Name',
+                            value: this.currentAchievementName
+                        },
+                        {
+                            name: 'Current Achievement Description',
+                            value: this.currentAchievementDescription
+                        },
+                        {
+                            name: 'Current Achievement Icon',
+                            value: this.currentAchievementIcon
+                        },
+                        {
+                            name: 'Current Achievement Icon Small',
+                            value: this.currentAchievementIconSmall
+                        },
+                        {
+                            name: 'Current Achievement Icon',
+                            value: this.currentAchievementIcon
+                        },
+                        {
+                            name: 'Current Achievement Rare',
+                            value: this.currentAchievementRare
+                        },
+                        {
+                            name: 'Current Achievement Unlocked',
+                            value: this.currentAchievementUnlocked
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Achievements Groups Loop',
+                    properties: [
+                        {
+                            name: 'Current Achievements Group Index',
+                            value: this.currentAchievementsGroupIndex
+                        },
+                        {
+                            name: 'Current Achievements Group ID',
+                            value: this.currentAchievementsGroupId
+                        },
+                        {
+                            name: 'Current Achievements Group Tag',
+                            value: this.currentAchievementsGroupTag
+                        },
+                        {
+                            name: 'Current Achievements Group Name',
+                            value: this.currentAchievementsGroupName
+                        },
+                        {
+                            name: 'Current Achievements Group Description',
+                            value: this.currentAchievementsGroupDescription
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Player Achievements Loop',
+                    properties: [
+                        {
+                            name: 'Current Player Achievement Index',
+                            value: this.currentPlayerAchievementIndex
+                        },
+                        {
+                            name: 'Current Player Achievement ID',
+                            value: this.currentPlayerAchievementId
+                        },
+                        {
+                            name: 'Current Player Achievement Unlock Date',
+                            value: this.currentPlayerAchievementUnlockDate
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Unlocked Achievement',
+                    properties: [
+                        {
+                            name: 'Is unlock successful',
+                            value: this.isUnlockAchievementSuccess
+                        },
+                        {
+                            name: 'Unlock error',
+                            value: this.unlockAchievementError
+                        },
+                        {
+                            name: 'Unlocked Achievement ID',
+                            value: this.unlockedAchievementId
+                        },
+                        {
+                            name: 'Unlocked Achievement Tag',
+                            value: this.unlockedAchievementTag
+                        },
+                        {
+                            name: 'Unlocked Achievement Name',
+                            value: this.unlockedAchievementName
+                        },
+                        {
+                            name: 'Unlocked Achievement Description',
+                            value: this.unlockedAchievementDescription
+                        },
+                        {
+                            name: 'Unlocked Achievement Icon',
+                            value: this.unlockedAchievementIcon
+                        },
+                        {
+                            name: 'Unlocked Achievement Icon Small',
+                            value: this.unlockedAchievementIconSmall
+                        },
+                        {
+                            name: 'Unlocked Achievement Icon',
+                            value: this.unlockedAchievementIcon
+                        },
+                        {
+                            name: 'Unlocked Achievement Rare',
+                            value: this.unlockedAchievementRare
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Products Loop',
+                    properties: [
+                        {
+                            name: 'Current Product Index',
+                            value: this.currentProductIndex
+                        },
+                        {
+                            name: 'Current Product ID',
+                            value: this.currentProductId
+                        },
+                        {
+                            name: 'Current Product Tag',
+                            value: this.currentProductTag
+                        },
+                        {
+                            name: 'Current Product Name',
+                            value: this.currentProductName
+                        },
+                        {
+                            name: 'Current Product Description',
+                            value: this.currentProductDescription
+                        },
+                        {
+                            name: 'Current Product Icon',
+                            value: this.currentProductIcon
+                        },
+                        {
+                            name: 'Current Product Icon Small',
+                            value: this.currentProductIconSmall
+                        },
+                        {
+                            name: 'Current Product Icon',
+                            value: this.currentProductIcon
+                        },
+                        {
+                            name: 'Current Product Price',
+                            value: this.currentProductPrice
+                        },
+                        {
+                            name: 'Current Product Currency',
+                            value: this.currentProductCurrency
+                        },
+                        {
+                            name: 'Current Product CurrencySymbol',
+                            value: this.currentProductCurrencySymbol
+                        },
+                        {
+                            name: 'Current Product Purchases',
+                            value: this.currentProductPurchases
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Purchased Product',
+                    properties: [
+                        {
+                            name: 'Is purchase successful',
+                            value: this.isPurchaseProductSuccess
+                        },
+                        {
+                            name: 'Purchase error',
+                            value: this.purchaseProductError
+                        },
+                        {
+                            name: 'Purchased Product ID',
+                            value: this.purchasedProductId
+                        },
+                        {
+                            name: 'Purchased Product Tag',
+                            value: this.purchasedProductTag
+                        }
+                    ]
+                },
+                {
+                    title: 'GS - Consumed Product',
+                    properties: [
+                        {
+                            name: 'Is consume successful',
+                            value: this.isConsumeProductSuccess
+                        },
+                        {
+                            name: 'Consume error',
+                            value: this.consumeProductError
+                        },
+                        {
+                            name: 'Consumed Product ID',
+                            value: this.consumedProductId
+                        },
+                        {
+                            name: 'Consumed Product Tag',
+                            value: this.consumedProductTag
+                        }
+                    ]
+                }
+            ];
+        }
+    };
+}
+
+}
+
+{
+'use strict';
+{
+    function each(runtime, array, cb) {
+        const eventSheetManager = runtime.GetEventSheetManager();
+        const currentEvent = runtime.GetCurrentEvent();
+        const solModifiers = currentEvent.GetSolModifiers();
+        const eventStack = runtime.GetEventStack();
+        const oldFrame = eventStack.GetCurrentStackFrame();
+        const newFrame = eventStack.Push(currentEvent);
+
+        array.forEach((item, index) => {
+            cb(item, index);
+
+            eventSheetManager.PushCopySol(solModifiers);
+            currentEvent.Retrigger(oldFrame, newFrame);
+            eventSheetManager.PopSol(solModifiers);
+        });
+
+        eventStack.Pop();
+    }
+
+    C3.Plugins.Eponesh_GameScore.Cnds = {
+        OnPlayerChange() {
+            return true;
+        },
+
+        OnPlayerSyncComplete() {
+            return true;
+        },
+
+        OnPlayerSyncError() {
+            return true;
+        },
+
+        OnPlayerLoadComplete() {
+            return true;
+        },
+
+        OnPlayerLoadError() {
+            return true;
+        },
+
+        OnPlayerLoginComplete() {
+            return true;
+        },
+
+        OnPlayerLoginError() {
+            return true;
+        },
+
+        OnPlayerFetchFieldsComplete() {
+            return true;
+        },
+
+        OnPlayerFetchFieldsError() {
+            return true;
+        },
+
+        OnPlayerReady() {
+            return true;
+        },
+
+        IsPlayerReady() {
+            return this.isPlayerReady;
+        },
+
+        IsPlayerStub() {
+            return this.gs.player.isStub;
+        },
+
+        IsPlayerLoggedIn() {
+            return this.gs.player.isLoggedIn;
+        },
+
+        PlayerHasKey(key) {
+            return this.gs.player.has(key);
+        },
+
+        PlayerFieldIsEnum(key) {
+            return this.gs.player.getField(key).variants.length;
+        },
+
+        PlayerCompareScore(comparison, value) {
+            return this.mappers.compare[comparison](this.gs.player.score, value);
+        },
+
+        PlayerCompare(key, comparison, value) {
+            return this.mappers.compare[comparison](this.gs.player.get(key), value);
+        },
+
+        PlayerEachField() {
+            each(this._runtime, this.gs.player.fields, (field) => {
+                this.currentPlayerFieldKey = field.key;
+                this.currentPlayerFieldType = field.type;
+                this.currentPlayerFieldName = field.name;
+                this.currentPlayerFieldValue = this.gs.player.get(field.key);
+            });
+
+            return false;
+        },
+
+        PlayerEachFieldVariant(key) {
+            each(this._runtime, this.gs.player.getField(key).variants, (variant, index) => {
+                this.currentPlayerFieldVariantValue = variant.value;
+                this.currentPlayerFieldVariantName = variant.name;
+                this.currentPlayerFieldVariantIndex = index;
+            });
+
+            return false;
+        },
+
+        OnLeaderboardOpen() {
+            return true;
+        },
+
+        OnLeaderboardFetch(tag) {
+            return this.lastLeaderboardTag === tag;
+        },
+
+        OnLeaderboardAnyFetch() {
+            return true;
+        },
+
+        OnLeaderboardFetchError(tag) {
+            return this.lastLeaderboardTag === tag;
+        },
+
+        OnLeaderboardAnyFetchError() {
+            return true;
+        },
+
+        OnLeaderboardFetchPlayer(tag) {
+            return this.lastLeaderboardPlayerRatingTag === tag;
+        },
+
+        OnLeaderboardAnyFetchPlayer() {
+            return true;
+        },
+
+        OnLeaderboardFetchPlayerError(tag) {
+            return this.lastLeaderboardPlayerRatingTag === tag;
+        },
+
+        OnLeaderboardAnyFetchPlayerError() {
+            return true;
+        },
+
+        LeaderboardEachPlayer() {
+            each(this._runtime, this.leaderboard, (player, index) => {
+                this.currentLeaderboardIndex = index;
+                this.currentLeaderboardPlayer = player;
+            });
+
+            return false;
+        },
+
+        OnAchievementsOpen() {
+            return true;
+        },
+
+        OnAchievementsClose() {
+            return true;
+        },
+
+        OnAchievementsFetch() {
+            return true;
+        },
+
+        OnAchievementsFetchError() {
+            return true;
+        },
+
+        OnAchievementsUnlock(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            return this.unlockedAchievementTag === idOrTag || this.unlockedAchievementId === id;
+        },
+
+        OnAchievementsAnyUnlock() {
+            return true;
+        },
+
+        OnAchievementsAnyUnlockError() {
+            return true;
+        },
+
+        AchievementsEachAchievement() {
+            each(this._runtime, this.achievements, (achievement, index) => {
+                this.currentAchievementIndex = index;
+                this.currentAchievementId = achievement.id;
+                this.currentAchievementTag = achievement.tag;
+                this.currentAchievementName = achievement.name;
+                this.currentAchievementDescription = achievement.description;
+                this.currentAchievementIcon = achievement.icon;
+                this.currentAchievementIconSmall = achievement.iconSmall;
+                this.currentAchievementRare = achievement.rare;
+                this.currentAchievementUnlocked = this.playerAchievements.some(
+                    (a) => a.achievementId === achievement.id
+                );
+            });
+
+            return false;
+        },
+
+        AchievementsEachAchievementInGroup(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            const group = this.achievementsGroups.find((ag) => ag.tag === idOrTag || ag.id === id);
+            const achievements = group
+                ? group.achievements.reduce((list, aId) => {
+                      const achievement = this.achievements.find((a) => a.id === aId);
+                      if (achievement) {
+                          list.push(achievement);
+                      }
+                      return list;
+                  }, [])
+                : [];
+
+            each(this._runtime, achievements, (achievement, index) => {
+                this.currentAchievementIndex = index;
+                this.currentAchievementId = achievement.id;
+                this.currentAchievementTag = achievement.tag;
+                this.currentAchievementName = achievement.name;
+                this.currentAchievementDescription = achievement.description;
+                this.currentAchievementIcon = achievement.icon;
+                this.currentAchievementIconSmall = achievement.iconSmall;
+                this.currentAchievementRare = achievement.rare;
+                this.currentAchievementUnlocked = this.playerAchievements.some(
+                    (a) => a.achievementId === achievement.id
+                );
+            });
+
+            return false;
+        },
+
+        AchievementsEachAchievementsGroup() {
+            each(this._runtime, this.achievementsGroups, (achievementsGroup, index) => {
+                this.currentAchievementsGroupIndex = index;
+                this.currentAchievementsGroupId = achievementsGroup.id;
+                this.currentAchievementsGroupTag = achievementsGroup.tag;
+                this.currentAchievementsGroupName = achievementsGroup.name;
+                this.currentAchievementsGroupDescription = achievementsGroup.description;
+            });
+
+            return false;
+        },
+
+        AchievementsEachPlayerAchievements() {
+            each(this._runtime, this.playerAchievements, (playerAchievement, index) => {
+                this.currentPlayerAchievementIndex = index;
+                this.currentPlayerAchievementId = playerAchievement.achievementId;
+                this.currentPlayerAchievementUnlockDate = playerAchievement.createdAt;
+            });
+
+            return false;
+        },
+
+        IsAchievementsCurAchievementUnlocked() {
+            return this.currentAchievementUnlocked;
+        },
+
+        IsAchievementsUnlockSuccessful() {
+            return this.isUnlockAchievementSuccess;
+        },
+
+        AchievementsIsUnlocked(idOrTag) {
+            return this.gs.achievements.has(idOrTag);
+        },
+
+        // payments
+        OnPaymentsFetchProducts() {
+            return true;
+        },
+
+        OnPaymentsFetchProductsError() {
+            return true;
+        },
+
+        OnPaymentsPurchase(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            return this.purchasedProductTag === idOrTag || this.purchasedProductId === id;
+        },
+
+        OnPaymentsPurchaseError(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            return this.purchasedProductTag === idOrTag || this.purchasedProductId === id;
+        },
+
+        OnPaymentsAnyPurchase() {
+            return true;
+        },
+
+        OnPaymentsAnyPurchaseError() {
+            return true;
+        },
+
+        OnPaymentsConsume(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            return this.consumedProductTag === idOrTag || this.consumedProductId === id;
+        },
+
+        OnPaymentsConsumeError(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            return this.consumedProductTag === idOrTag || this.consumedProductId === id;
+        },
+
+        OnPaymentsAnyConsume() {
+            return true;
+        },
+
+        OnPaymentsAnyConsumeError() {
+            return true;
+        },
+
+        PaymentsEachProduct() {
+            each(this._runtime, this.products, (product, index) => {
+                this.currentProductIndex = index;
+                this.currentProductId = product.id;
+                this.currentProductTag = product.tag;
+                this.currentProductName = product.name;
+                this.currentProductDescription = product.description;
+                this.currentProductIcon = product.icon;
+                this.currentProductIconSmall = product.iconSmall;
+                this.currentProductPrice = product.price;
+                this.currentProductCurrency = product.currency;
+                this.currentProductCurrencySymbol = product.currencySymbol;
+                this.currentProductPurchases = this.playerPurchases.filter((a) => a.productId === product.id).length;
+            });
+
+            return false;
+        },
+
+        IsPaymentsCurProductPurchased() {
+            return this.currentProductPurchases > 0;
+        },
+
+        IsPaymentsPurchaseSuccessful() {
+            return this.isPurchaseProductSuccess;
+        },
+
+        IsPaymentsConsumeSuccessful() {
+            return this.isConsumeProductSuccess;
+        },
+
+        PaymentsIsPurchased(idOrTag) {
+            return this.gs.payments.has(idOrTag);
+        },
+
+        IsPaymentsAvailable() {
+            return this.gs.payments.isAvailable;
+        },
+
+        OnFullscreenOpen() {
+            return true;
+        },
+
+        OnFullscreenClose() {
+            return true;
+        },
+
+        OnFullscreenChange() {
+            return true;
+        },
+
+        IsFullscreenMode() {
+            return this.gs.fullscreen.isEnabled;
+        },
+
+        OnAdsStart() {
+            return true;
+        },
+
+        OnAdsClose() {
+            return true;
+        },
+
+        OnAdsFullscreenStart() {
+            return true;
+        },
+
+        OnAdsFullscreenClose() {
+            return true;
+        },
+
+        OnAdsPreloaderStart() {
+            return true;
+        },
+
+        OnAdsPreloaderClose() {
+            return true;
+        },
+
+        OnAdsRewardedStart() {
+            return true;
+        },
+
+        OnAdsRewardedClose() {
+            return true;
+        },
+
+        OnAdsRewardedReward() {
+            return true;
+        },
+
+        OnAdsStickyStart() {
+            return true;
+        },
+
+        OnAdsStickyClose() {
+            return true;
+        },
+
+        OnAdsStickyRefresh() {
+            return true;
+        },
+
+        OnAdsStickyRender() {
+            return true;
+        },
+
+        IsAdsFullscreenAvailable() {
+            return this.gs.ads.isFullscreenAvailable;
+        },
+
+        IsAdsRewardedAvailable() {
+            return this.gs.ads.isRewardedAvailable;
+        },
+
+        IsAdsPreloaderAvailable() {
+            return this.gs.ads.isPreloaderAvailable;
+        },
+
+        IsAdsStickyAvailable() {
+            return this.gs.ads.isStickyAvailable;
+        },
+
+        IsAdsFullscreenPlaying() {
+            return this.gs.ads.isFullscreenPlaying;
+        },
+
+        IsAdsRewardedPlaying() {
+            return this.gs.ads.isRewardedPlaying;
+        },
+
+        IsAdsPreloaderPlaying() {
+            return this.gs.ads.isPreloaderPlaying;
+        },
+
+        IsAdsStickyPlaying() {
+            return this.gs.ads.isStickyPlaying;
+        },
+
+        IsAdsAdblockEnabled() {
+            return this.gs.ads.isAdblockEnabled;
+        },
+
+        IsAdsLastAdSuccess() {
+            return Boolean(this.isLastAdSuccess);
+        },
+
+        // gs
+        OnChangeLanguage() {
+            return true;
+        },
+
+        OnChangeAvatarGenerator() {
+            return true;
+        },
+
+        OnOverlayReady() {
+            return true;
+        },
+
+        IsDev() {
+            return this.gs.isDev;
+        },
+
+        Language(language) {
+            return this.gs.language === this.mappers.language[language];
+        },
+
+        // platform
+        HasPlatformIntegratedAuth() {
+            return this.gs.platform.hasIntegratedAuth;
+        },
+
+        PlatformType(type) {
+            return this.gs.platform.type === this.mappers.platform[type];
+        },
+
+        IsExternalLinksAllowedOnPlatform() {
+            return this.gs.platform.isExternalLinksAllowed;
+        },
+
+        // socials
+        OnSocialsShare() {
+            return true;
+        },
+
+        OnSocialsPost() {
+            return true;
+        },
+
+        OnSocialsInvite() {
+            return true;
+        },
+
+        OnSocialsJoinCommunity() {
+            return true;
+        },
+
+        IsSocialsLastShareSuccess() {
+            return this.isLastShareSuccess;
+        },
+
+        IsSocialsLastCommunityJoinSuccess() {
+            return this.isLastCommunityJoinSuccess;
+        },
+
+        IsSocialsSupportsNativeShare() {
+            return this.gs.socials.isSupportsNativeShare;
+        },
+
+        IsSocialsSupportsNativePosts() {
+            return this.gs.socials.isSupportsNativePosts;
+        },
+
+        IsSocialsSupportsNativeInvite() {
+            return this.gs.socials.isSupportsNativeInvite;
+        },
+
+        IsSocialsSupportsNativeCommunityJoin() {
+            return this.gs.socials.isSupportsNativeCommunityJoin;
+        },
+
+        OnLoadJsonError() {
+            return true;
+        }
+    };
+}
+
+}
+
+{
+'use strict';
+{
+    C3.Plugins.Eponesh_GameScore.Acts = {
+        PlayerSetName(name) {
+            this.gs.player.name = name;
+        },
+
+        PlayerSetAvatar(src) {
+            this.gs.player.avatar = src;
+        },
+
+        PlayerSetScore(score) {
+            this.gs.player.score = score;
+        },
+
+        PlayerAddScore(score) {
+            this.gs.player.score += score;
+        },
+
+        PlayerSet(key, value) {
+            this.gs.player.set(key, value);
+        },
+
+        PlayerSetFlag(key, value) {
+            this.gs.player.set(key, !value);
+        },
+
+        PlayerAdd(key, value) {
+            this.gs.player.add(key, value);
+        },
+
+        PlayerToggle(key) {
+            this.gs.player.toggle(key);
+        },
+
+        PlayerReset() {
+            this.gs.player.reset();
+        },
+
+        PlayerRemove() {
+            this.gs.player.remove();
+        },
+
+        PlayerSync(override = false) {
+            return this.gs.player.sync({ override });
+        },
+
+        PlayerLoad() {
+            return this.gs.player.load();
+        },
+
+        PlayerLogin() {
+            return this.gs.player.login();
+        },
+
+        PlayerFetchFields() {
+            return this.gs.player.fetchFields();
+        },
+
+        PlayerWaitForReady() {
+            return this.awaiters.player.ready;
+        },
+
+        LeaderboardOpen(orderBy, order, limit, withMe, includeFields, displayFields) {
+            return this.gs.leaderboard
+                .open({
+                    id: this.gs.player.id,
+                    orderBy: orderBy
+                        .split(',')
+                        .map((o) => o.trim())
+                        .filter((f) => f),
+                    order: order === 0 ? 'DESC' : 'ASC',
+                    limit,
+                    withMe: this.mappers.withMe[withMe],
+                    includeFields: includeFields
+                        .split(',')
+                        .map((o) => o.trim())
+                        .filter((f) => f),
+                    displayFields: displayFields
+                        .split(',')
+                        .map((o) => o.trim())
+                        .filter((f) => f)
+                })
+                .catch(console.warn);
+        },
+
+        LeaderboardFetch(tag, orderBy, order, limit, withMe, includeFields) {
+            return this.gs.leaderboard
+                .fetch({
+                    id: this.gs.player.id,
+                    orderBy: orderBy
+                        .split(',')
+                        .map((o) => o.trim())
+                        .filter((f) => f),
+                    order: order === 0 ? 'DESC' : 'ASC',
+                    limit,
+                    withMe: this.mappers.withMe[withMe],
+                    includeFields: includeFields
+                        .split(',')
+                        .map((o) => o.trim())
+                        .filter((f) => f)
+                })
+                .then((leaderboardInfo) => {
+                    this.lastLeaderboardTag = tag;
+                    this.leaderboard = leaderboardInfo.players;
+                    this.Trigger(this.conditions.OnLeaderboardFetch);
+                    this.Trigger(this.conditions.OnLeaderboardAnyFetch);
+                })
+                .catch((err) => {
+                    console.warn(err);
+                    this.lastLeaderboardTag = tag;
+                    this.Trigger(this.conditions.OnLeaderboardFetchError);
+                    this.Trigger(this.conditions.OnLeaderboardAnyFetchError);
+                });
+        },
+
+        LeaderboardFetchPlayerRating(tag, orderBy, order) {
+            return this.gs.leaderboard
+                .fetchPlayerRating({
+                    id: this.gs.player.id,
+                    orderBy: orderBy
+                        .split(',')
+                        .map((o) => o.trim())
+                        .filter((f) => f),
+                    order: order === 0 ? 'DESC' : 'ASC'
+                })
+                .then((result) => {
+                    this.lastLeaderboardPlayerRatingTag = tag;
+                    this.leaderboardPlayerPosition = result.player.position;
+                    this.Trigger(this.conditions.OnLeaderboardFetchPlayer);
+                    this.Trigger(this.conditions.OnLeaderboardAnyFetchPlayer);
+                })
+                .catch((err) => {
+                    console.warn(err);
+                    this.lastLeaderboardPlayerRatingTag = tag;
+                    this.Trigger(this.conditions.OnLeaderboardFetchPlayerError);
+                    this.Trigger(this.conditions.OnLeaderboardAnyFetchPlayerError);
+                });
+        },
+
+        AchievementsOpen() {
+            return this.gs.achievements.open().catch(console.warn);
+        },
+
+        AchievementsFetch() {
+            return this.gs.achievements
+                .fetch()
+                .then((result) => {
+                    this.achievements = result.achievements;
+                    this.achievementsGroups = result.achievementsGroups;
+                    this.playerAchievements = result.playerAchievements;
+                    this.Trigger(this.conditions.OnAchievementsFetch);
+                })
+                .catch((err) => {
+                    console.warn(err);
+                    this.Trigger(this.conditions.OnAchievementsFetchError);
+                });
+        },
+
+        AchievementsUnlock(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            const query = id > 0 ? { id } : { tag: idOrTag };
+            return this.gs.achievements
+                .unlock(query)
+                .then((result) => {
+                    this.isUnlockAchievementSuccess = result.success;
+                    this.unlockAchievementError = result.error || '';
+
+                    const achievement = result.achievement || {};
+                    this.unlockedAchievementId = achievement.id || 0;
+                    this.unlockedAchievementTag = achievement.tag || '';
+                    this.unlockedAchievementName = achievement.name || '';
+                    this.unlockedAchievementDescription = achievement.description || '';
+                    this.unlockedAchievementIcon = achievement.icon || '';
+                    this.unlockedAchievementIconSmall = achievement.iconSmall || '';
+                    this.unlockedAchievementRare = achievement.rare || 'COMMON';
+
+                    if (result.success) {
+                        this.Trigger(this.conditions.OnAchievementsUnlock);
+                        this.Trigger(this.conditions.OnAchievementsAnyUnlock);
+                        return;
+                    }
+
+                    this.Trigger(this.conditions.OnAchievementsAnyUnlockError);
+                })
+                .catch((err) => {
+                    console.warn(err);
+                    this.Trigger(this.conditions.OnAchievementsAnyUnlockError);
+                });
+        },
+
+        PaymentsFetchProducts() {
+            return this.gs.payments
+                .fetchProducts()
+                .then((result) => {
+                    this.products = result.products;
+                    this.playerPurchases = result.playerPurchases;
+                    this.Trigger(this.conditions.OnPaymentsFetchProducts);
+                })
+                .catch((err) => {
+                    console.warn(err);
+                    this.Trigger(this.conditions.OnPaymentsFetchProductsError);
+                });
+        },
+
+        PaymentsPurchase(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            const query = id > 0 ? { id } : { tag: idOrTag };
+            return this.gs.payments
+                .purchase(query)
+                .then((result) => {
+                    this.isPurchaseProductSuccess = result.success;
+                    this.purchaseProductError = result.error || '';
+
+                    const product = result.product || {};
+                    this.purchasedProductId = product.id || 0;
+                    this.purchasedProductTag = product.tag || '';
+
+                    if (result.success) {
+                        this.Trigger(this.conditions.OnPaymentsPurchase);
+                        this.Trigger(this.conditions.OnPaymentsAnyPurchase);
+                        return;
+                    }
+
+                    this.Trigger(this.conditions.OnPaymentsPurchaseError);
+                    this.Trigger(this.conditions.OnPaymentsAnyPurchaseError);
+                })
+                .catch((err) => {
+                    console.warn(err);
+                    this.Trigger(this.conditions.OnPaymentsPurchaseError);
+                    this.Trigger(this.conditions.OnPaymentsAnyPurchaseError);
+                });
+        },
+
+        PaymentsConsume(idOrTag) {
+            const id = parseInt(idOrTag, 10) || 0;
+            const query = id > 0 ? { id } : { tag: idOrTag };
+            return this.gs.payments
+                .consume(query)
+                .then((result) => {
+                    this.isConsumeProductSuccess = result.success;
+                    this.consumeProductError = result.error || '';
+
+                    const product = result.product || {};
+                    this.consumedProductId = product.id || 0;
+                    this.consumedProductTag = product.tag || '';
+
+                    if (result.success) {
+                        this.Trigger(this.conditions.OnPaymentsConsume);
+                        this.Trigger(this.conditions.OnPaymentsAnyConsume);
+                        return;
+                    }
+
+                    this.Trigger(this.conditions.OnPaymentsConsumeError);
+                    this.Trigger(this.conditions.OnPaymentsAnyConsumeError);
+                })
+                .catch((err) => {
+                    console.warn(err);
+                    this.Trigger(this.conditions.OnPaymentsConsumeError);
+                    this.Trigger(this.conditions.OnPaymentsAnyConsumeError);
+                });
+        },
+
+        FullscreenOpen() {
+            return this.gs.fullscreen.open();
+        },
+
+        FullscreenClose() {
+            return this.gs.fullscreen.close();
+        },
+
+        FullscreenToggle() {
+            return this.gs.fullscreen.toggle();
+        },
+
+        AdsShowFullscreen() {
+            return this.gs.ads.showFullscreen();
+        },
+
+        AdsShowRewarded() {
+            return this.gs.ads.showRewardedVideo();
+        },
+
+        AdsShowPreloader() {
+            return this.gs.ads.showPreloader();
+        },
+
+        AdsShowSticky() {
+            return this.gs.ads.showSticky();
+        },
+
+        AdsCloseSticky() {
+            return this.gs.ads.closeSticky();
+        },
+
+        AdsRefreshSticky() {
+            return this.gs.ads.refreshSticky();
+        },
+
+        AnalyticsHit(url) {
+            return this.gs.analytics.hit(url);
+        },
+
+        AnalyticsGoal(event, value) {
+            return this.gs.analytics.goal(event, value);
+        },
+
+        SocialsShare(text, url, image) {
+            return this.gs.socials.share({ text, url, image });
+        },
+
+        SocialsPost(text, url, image) {
+            return this.gs.socials.post({ text, url, image });
+        },
+
+        SocialsInvite(text, url, image) {
+            return this.gs.socials.invite({ text, url, image });
+        },
+
+        SocialsJoinCommunity() {
+            return this.gs.socials.joinCommunity();
+        },
+
+        ChangeLanguage(language) {
+            return this.gs.changeLanguage(this.mappers.language[language]);
+        },
+
+        ChangeLanguageByCode(language = '') {
+            return this.gs.changeLanguage(language.toLowerCase());
+        },
+
+        ChangeAvatarGenerator(generator) {
+            return this.gs.changeAvatarGenerator(this.mappers.avatarGenerator[generator]);
+        },
+
+        LoadOverlay() {
+            return this.gs.loadOverlay();
+        },
+
+        LoadFromJSON(data) {
+            try {
+                const parsed = JSON.parse(data);
+                if (!('isReady' in parsed)) {
+                    throw new Error('Data was corrupted');
+                }
+
+                this.LoadFromJson(parsed);
+            } catch (error) {
+                this.Trigger(this.conditions.OnLoadJsonError);
+            }
+        }
+    };
+}
+
+}
+
+{
+'use strict';
+{
+    C3.Plugins.Eponesh_GameScore.Exps = {
+        PlayerID() {
+            return this.gs.player.id;
+        },
+
+        PlayerScore() {
+            return this.gs.player.score;
+        },
+
+        PlayerName() {
+            return this.gs.player.name;
+        },
+
+        PlayerAvatar() {
+            return this.gs.player.avatar;
+        },
+
+        PlayerGet(key) {
+            return this.gs.player.get(key);
+        },
+
+        PlayerHas(key) {
+            return this.gs.player.is(key);
+        },
+
+        PlayerFieldName(key) {
+            return this.gs.player.getFieldName(key);
+        },
+
+        PlayerFieldVariantName(key, value) {
+            return this.gs.player.getFieldVariantName(key, value);
+        },
+
+        PlayerGetFieldVariantAt(key, index) {
+            const variant = this.gs.player.getField(key).variants[index];
+            return variant ? variant.value : '';
+        },
+
+        PlayerGetFieldVariantIndex(key, value) {
+            return this.gs.player.getField(key).variants.findIndex((v) => v.value === value);
+        },
+
+        PlayerCurFieldKey() {
+            return this.currentPlayerFieldKey || '';
+        },
+
+        PlayerCurFieldType() {
+            return this.currentPlayerFieldType || '';
+        },
+
+        PlayerCurFieldName() {
+            return this.currentPlayerFieldName || '';
+        },
+
+        PlayerCurFieldValue() {
+            return typeof this.currentPlayerFieldValue === 'string'
+                ? this.currentPlayerFieldValue
+                : Number(this.currentPlayerFieldValue || 0);
+        },
+
+        PlayerCurFieldVariantValue() {
+            return typeof this.currentPlayerFieldVariantValue === 'string'
+                ? this.currentPlayerFieldVariantValue
+                : Number(this.currentPlayerFieldVariantValue || 0);
+        },
+
+        PlayerCurFieldVariantName() {
+            return this.currentPlayerFieldVariantName || '';
+        },
+
+        PlayerCurFieldVariantIndex() {
+            return this.currentPlayerFieldVariantIndex || 0;
+        },
+
+        LeaderboardCurPlayerName() {
+            return this.currentLeaderboardPlayer.name || '';
+        },
+
+        LeaderboardCurPlayerAvatar() {
+            return this.currentLeaderboardPlayer.avatar || '';
+        },
+
+        LeaderboardCurPlayerID() {
+            return this.currentLeaderboardPlayer.id || 0;
+        },
+
+        LeaderboardCurPlayerScore() {
+            return this.currentLeaderboardPlayer.score || 0;
+        },
+
+        LeaderboardCurPlayerPosition() {
+            return this.currentLeaderboardPlayer.position || 0;
+        },
+
+        LeaderboardCurPlayerIndex() {
+            return this.currentLeaderboardIndex || 0;
+        },
+
+        LeaderboardCurPlayerField(key) {
+            return key in this.currentLeaderboardPlayer ? this.currentLeaderboardPlayer[key] : 0;
+        },
+
+        LeaderboardPlayerFieldAt(index, key) {
+            const player = this.leaderboard[index];
+            return player && key in player ? player[key] : 0;
+        },
+
+        LeaderboardPlayerPosition() {
+            return this.leaderboardPlayerPosition || 0;
+        },
+
+        IsFullscreenMode() {
+            return Number(this.gs.fullscreen.isEnabled);
+        },
+
+        Language() {
+            return this.gs.language;
+        },
+
+        AvatarGenerator() {
+            return this.gs.avatarGenerator;
+        },
+
+        PlatformType() {
+            return this.gs.platform.type;
+        },
+
+        AppTitle() {
+            return this.gs.app.title;
+        },
+
+        AppDescription() {
+            return this.gs.app.description;
+        },
+
+        AppImage() {
+            return this.gs.app.image;
+        },
+
+        AppUrl() {
+            return this.gs.app.url;
+        },
+
+        AchievementsTotalAchievements() {
+            return this.achievements.length;
+        },
+
+        AchievementsTotalAchievementsGroups() {
+            return this.achievementsGroups.length;
+        },
+
+        AchievementsTotalPlayerAchievements() {
+            return this.playerAchievements.length;
+        },
+
+        AchievementsCurAchievementIndex() {
+            return this.currentAchievementIndex;
+        },
+
+        AchievementsCurAchievementID() {
+            return this.currentAchievementId;
+        },
+
+        AchievementsCurAchievementTag() {
+            return this.currentAchievementTag;
+        },
+
+        AchievementsCurAchievementName() {
+            return this.currentAchievementName;
+        },
+
+        AchievementsCurAchievementDescription() {
+            return this.currentAchievementDescription;
+        },
+
+        AchievementsCurAchievementIcon() {
+            return this.currentAchievementIcon;
+        },
+
+        AchievementsCurAchievementIconSmall() {
+            return this.currentAchievementIconSmall;
+        },
+
+        AchievementsCurAchievementRare() {
+            return this.currentAchievementRare;
+        },
+
+        AchievementsCurAchievementUnlocked() {
+            return this.currentAchievementUnlocked;
+        },
+
+        AchievementsCurAchievementsGroupIndex() {
+            return this.currentAchievementsGroupIndex;
+        },
+
+        AchievementsCurAchievementsGroupID() {
+            return this.currentAchievementsGroupID;
+        },
+
+        AchievementsCurAchievementsGroupTag() {
+            return this.currentAchievementsGroupTag;
+        },
+
+        AchievementsCurAchievementsGroupName() {
+            return this.currentAchievementsGroupName;
+        },
+
+        AchievementsCurAchievementsGroupDescription() {
+            return this.currentAchievementsGroupDescription;
+        },
+
+        AchievementsCurPlayerAchievementIndex() {
+            return this.currentPlayerAchievementIndex;
+        },
+
+        AchievementsCurPlayerAchievementID() {
+            return this.currentPlayerAchievementId;
+        },
+
+        AchievementsCurPlayerAchievementUnlockDate() {
+            return this.currentPlayerAchievementUnlockDate;
+        },
+
+        AchievementsUnlockedAchievementSuccess() {
+            return this.isUnlockAchievementSuccess;
+        },
+
+        AchievementsUnlockedAchievementError() {
+            return this.unlockAchievementError;
+        },
+
+        AchievementsUnlockedAchievementID() {
+            return this.unlockedAchievementID;
+        },
+
+        AchievementsUnlockedAchievementTag() {
+            return this.unlockedAchievementTag;
+        },
+
+        AchievementsUnlockedAchievementName() {
+            return this.unlockedAchievementName;
+        },
+
+        AchievementsUnlockedAchievementDescription() {
+            return this.unlockedAchievementDescription;
+        },
+
+        AchievementsUnlockedAchievementIcon() {
+            return this.unlockedAchievementIcon;
+        },
+
+        AchievementsUnlockedAchievementIconSmall() {
+            return this.unlockedAchievementIconSmall;
+        },
+
+        AchievementsUnlockedAchievementRare() {
+            return this.unlockedAchievementRare;
+        },
+
+        SocialsCommunityLink() {
+            return this.gs.socials.communityLink;
+        },
+
+        PaymentsCurProductIndex() {
+            return this.currentProductIndex;
+        },
+
+        PaymentsCurProductID() {
+            return this.currentProductId;
+        },
+
+        PaymentsCurProductTag() {
+            return this.currentProductTag;
+        },
+
+        PaymentsCurProductName() {
+            return this.currentProductName;
+        },
+
+        PaymentsCurProductDescription() {
+            return this.currentProductDescription;
+        },
+
+        PaymentsCurProductIcon() {
+            return this.currentProductIcon;
+        },
+
+        PaymentsCurProductIconSmall() {
+            return this.currentProductIconSmall;
+        },
+
+        PaymentsCurProductPrice() {
+            return this.currentProductPrice;
+        },
+
+        PaymentsCurProductCurrency() {
+            return this.currentProductCurrency;
+        },
+
+        PaymentsCurProductCurrencySymbol() {
+            return this.currentProductCurrencySymbol;
+        },
+
+        PaymentsCurProductPurchases() {
+            return this.currentProductPurchases;
+        },
+
+        PaymentsPurchasedProductSuccess() {
+            return this.isPurchaseProductSuccess;
+        },
+
+        PaymentsPurchasedProductError() {
+            return this.purchaseProductError;
+        },
+
+        PaymentsPurchasedProductID() {
+            return this.purchasedProductID;
+        },
+
+        PaymentsPurchasedProductTag() {
+            return this.purchasedProductTag;
+        },
+
+        PaymentsConsumedProductSuccess() {
+            return this.isConsumeProductSuccess;
+        },
+
+        PaymentsConsumedProductError() {
+            return this.consumeProductError;
+        },
+
+        PaymentsConsumedProductID() {
+            return this.consumedProductID;
+        },
+
+        PaymentsConsumedProductTag() {
+            return this.consumedProductTag;
+        },
+
+        AsJSON() {
+            return JSON.stringify(this.SaveToJson());
+        }
+    };
+}
+
+}
+
+{
 'use strict';const C3=self.C3;C3.Plugins.TiledBg=class TiledBgPlugin extends C3.SDKPluginBase{constructor(opts){super(opts)}Release(){super.Release()}};
 
 }
@@ -9187,6 +12159,8 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Chadori_Mobile_Facebook,
 		C3.Plugins.CV_MobileOneSignal,
 		C3.Plugins.CV_MobileSleep,
+		C3.Plugins.Eponesh_YandexSDK,
+		C3.Plugins.Eponesh_GameScore,
 		C3.Plugins.TiledBg,
 		C3.Behaviors.rex_Anchor_mod,
 		C3.Behaviors.Tween,
@@ -9211,6 +12185,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Dictionary.Acts.SetKey,
 		C3.Plugins.System.Acts.SetBoolVar,
 		C3.ScriptsInEvents.Es_main_Event11_Act1,
+		C3.Plugins.PlatformInfo.Cnds.IsCordovaExport,
 		C3.Plugins.googleplay.Acts.SignIn,
 		C3.Plugins.LocalStorage.Acts.CheckItemExists,
 		C3.Plugins.Chadori_MobileBilling.Acts.Register,
@@ -9231,9 +12206,13 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Text.Cnds.IsBoolInstanceVarSet,
 		C3.Plugins.googleplay.Cnds.IsSignedIn,
 		C3.Plugins.advert.Acts.CreateBanner,
+		C3.Plugins.PlatformInfo.Cnds.IsWebExport,
+		C3.Plugins.Eponesh_GameScore.Acts.AdsShowSticky,
 		C3.Plugins.System.Acts.Wait,
 		C3.Plugins.advert.Acts.CreateInterstitial,
+		C3.Plugins.Eponesh_GameScore.Acts.AdsShowFullscreen,
 		C3.Plugins.advert.Acts.CreateRewarded,
+		C3.Plugins.Eponesh_GameScore.Acts.AdsShowRewarded,
 		C3.Plugins.System.Acts.SetGroupActive,
 		C3.Plugins.Particles.Acts.SetRate,
 		C3.Plugins.System.Cnds.CompareVar,
@@ -9282,6 +12261,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Sprite.Exps.Width,
 		C3.Plugins.Sprite.Exps.Height,
 		C3.Plugins.advert.Cnds.OnRewardedComplete,
+		C3.Plugins.Eponesh_GameScore.Cnds.OnAdsRewardedReward,
 		C3.Plugins.Arr.Acts.SetSize,
 		C3.Plugins.Arr.Acts.Push,
 		C3.Plugins.Json.Exps.Get,
@@ -9393,6 +12373,8 @@ self.C3_JsPropNameTable = [
 	{MobileFacebook: 0},
 	{MobileOneSignal: 0},
 	{MobileSleep: 0},
+	{YandexSDK: 0},
+	{GameScore: 0},
 	{Screen: 0},
 	{ui_BackBlackScreen: 0},
 	{AnchorMod: 0},
